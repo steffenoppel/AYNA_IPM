@@ -97,14 +97,7 @@ ggplot(FECUND, aes(x=Year,y=BREED_SUCC)) +geom_point(size=2, color='darkred')+ge
 #############################################################################
 
 ### find years in which no 'INCU' were counted - we need 'AON' for those years
-### HOPELESS - NEEDS TO BE FIXED IN DATABASE!
-
-# AONneeded <- counts %>% filter(Species==SP) %>%
-#   mutate(Year=year(Date)) %>%
-#   filter(Breed_Stage=="INCU") %>%
-#   filter(Cohort=="INCU") %>%
-#   group_by(Year) %>%
-#   summarise(n=sum(Number))
+### fixed on 24 Dec 2018 in database
 
 
 ### summary of population counts of breeding pairs per year and colony
@@ -112,12 +105,12 @@ POPSIZE<-counts %>% filter(Species==SP) %>%
   filter(Colony %in% c("Area 1","Area 2","Area 3","Area 4","Area 5","Area 6","Area 7","Area 9","Area 10")) %>%
   mutate(Year=year(Date)) %>%
   filter(Breed_Stage=="INCU") %>%
-  #filter(Cohort %in% c("INCU","TERR","AON")) %>%
-  filter(Cohort %in% c("INCU","TERR")) %>%
+  filter(Cohort %in% c("INCU","TERR","AON")) %>%
+  #filter(Cohort %in% c("INCU","TERR")) %>%
   group_by(Year,Colony) %>%
   summarise(N=sum(Number, na.rm=T)) %>%
   spread(key=Colony, value=N)
-POPSIZE
+POPSIZE[19:35,]
 
 
 ### add missing years from backup data (unknown source)
