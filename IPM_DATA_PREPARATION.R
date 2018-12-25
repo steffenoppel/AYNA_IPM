@@ -184,5 +184,5 @@ AYNA_EH$AGE<-birdage$MinAge[match(AYNA_EH$BirdID,birdage$BirdID)]
 
 ### EXPORT ENCOUNTER HISTORY
 dim(AYNA_EH)
-fwrite(AYNA_EH[,c(1,39,2:38)],"AYNA_multistate_encounter_history_1982_2018.csv")
+fwrite(AYNA_EH[,c(1,39,2:38)],"AYNA_simple_encounter_history_1982_2018.csv")
 
