@@ -100,7 +100,7 @@ ggplot(FECUND, aes(x=Year,y=BREED_SUCC)) +geom_point(size=2, color='darkred')+ge
 
 ### summary of population counts of breeding pairs per year and colony
 POPSIZE<-counts %>% filter(Species==SP) %>%
-  mutate(Colony=ifelse(grepl("Cavern",Colony,perl=T,ignore.case = T)==T,"Area 11",as.character(Colony))) %>%
+  mutate(Colony=ifelse(grepl("south of Cavern",Colony,perl=T,ignore.case = T)==T,"Area 11",as.character(Colony))) %>%
   mutate(Colony=ifelse(grepl("Tumbledown",Colony,perl=T,ignore.case = T)==T,"Area 8",as.character(Colony))) %>%
   #filter(Colony %in% c("Area 1","Area 2","Area 3","Area 4","Area 5","Area 6","Area 7","Area 8","Area 9","Area 10")) %>%
   mutate(Year=year(Date)) %>%
