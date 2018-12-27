@@ -75,7 +75,7 @@ FECUND
 
 
 ### add missing years from backup data (unknown source)
-FEC2<-backup %>% mutate(n_nests=NA) %>%
+FEC2<-backup %>% mutate(n_nests=INCU) %>%
   mutate(BREED_SUCC=CHIC/INCU) %>%
   select(Year,n_nests,BREED_SUCC) %>%
   filter(!Year %in% FECUND$Year)       ### remove the years already covered by good data
