@@ -102,9 +102,9 @@ params<-c("pop.size", "site.lam")
 
 ## MCMC settings
 ni<-60000  	## number of iterations (draws per chain)
-nt<-1		## thinning rate
-nb<-35000	## length of burn-in (number of iterations discarded at the start of each chain until convergence is reached)
-nc<-4		## number of chains
+nt<-1		    ## thinning rate
+nb<-35000	  ## length of burn-in (number of iterations discarded at the start of each chain until convergence is reached)
+nc<-4		    ## number of chains
 
 
 ## call JAGS from R   ###
@@ -135,11 +135,7 @@ write.table(OUT,"AYNA_trend_estimates2018_nimble.csv", sep=",")
 
 
 
-################ SET UP PLOT WINDOW AND PLOT THE GRAPH FOR THE WHOLE ISLAND ####################
-library(data.table)
-library(tidyverse)
-
-
+## CREATE PLOT AND SAVE AS PDF
 pdf("AYNA_pop_trend_Gough_2000_2018.pdf", width=11, height=8)
 OUT %>% filter(Mean>10) %>%
   mutate(Year=AYNA$Year) %>%
@@ -147,7 +143,6 @@ OUT %>% filter(Mean>10) %>%
   
 ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+ geom_line()+
   geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
-  #geom_point(data=data.frame(N=N,year=AYNA$Year), aes(x=year,y=N), colour='red',pch=4,size=2.5)+ 
   ylab("Number of AYNA pairs") +
   scale_y_continuous(breaks=seq(0,1000,100), limits=c(0,1000))+
   scale_x_continuous(breaks=seq(2000,2018,2))+
