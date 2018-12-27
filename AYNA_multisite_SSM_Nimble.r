@@ -141,9 +141,6 @@ library(tidyverse)
 
 
 pdf("AYNA_pop_trend_Gough_2000_2018.pdf", width=11, height=8)
-#postscript("Fig2.eps", width=10, height=6)
-#jpeg("Fig2.jpg", width=12, height=6, units="in", res=600, quality=100)
-#tiff("Fig2.tif", width=1200, height=600, units="px", compression="none")
 OUT %>% filter(Mean>10) %>%
   mutate(Year=AYNA$Year) %>%
   setNames(c('Mean', 'Median','SD','lcl', 'ucl','Year')) %>%
