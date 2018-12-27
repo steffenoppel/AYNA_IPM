@@ -46,19 +46,22 @@ f <- apply(CH, 1, get.first)
 ## REMOVE BIRDS THAT ARE TOO YOUNG TO HAVE HAD A CHANCE TO RETURN
 tooyoung<-ifelse(f>(dim(CH)[2]-5),ifelse(AYNA$AGE==0,1,0),0)
 CH<-CH[tooyoung==0,]  ## removes individuals that were ringed as chicks <5 years before end of time series
-
+ages<-AYNA$AGE[tooyoung==0]
 
 ## CREATE BLANK AGE MATRIX
 AGEMAT<-CH
 AGEMAT[,]<-2 ### set default to adult survival, and then insert the juvenile years
-
+n.occ<-dim(AGEMAT)[2]
 
 ## LOOP OVER EACH BIRD RINGED AND SET PRE-CAPTURE DATA TO NA AND ADJUST AGE
-for (l in 1: nrow(AGEMAT)){
-  if(f[l]>1){AGEMAT[l,1:(f[l]-1)]<-NA}  ## sets everything before first contact to NA
-  if(!is.na(AYNA$AGE[l]) & AYNA$AGE[l]==0){AGEMAT[l,f[l]:min((f[l]+4),dim(AGEMAT)[2])]<-1}  ## sets all juvenile years to 1
+for (l in 1:nrow(AGEMAT)){
+  firstocc<-get.first(CH[l,])
+  lastjuv<-firstocc+4
+  lastjuv<-ifelse(lastjuv>n.occ,n.occ,lastjuv)
+  young<-ages[l]
+  if(firstocc>1){AGEMAT[l,1:(firstocc-1)]<-NA}  ## sets everything before first contact to NA
+  if(young==0){AGEMAT[l,firstocc:lastjuv]<-1}  ## sets all juvenile years to 1
 }
-
 
 
 
@@ -74,6 +77,7 @@ dim(rCH)
 exclude<- apply(rCH,1,sum)
 rCH<-rCH[exclude>0,]        ## removes individuals that were not observed in the last 19 years - could also set >1 to remove transients
 AGEMAT<-AGEMAT[exclude>0,]  ## removes individuals that were not observed in the last 19 years
+ages<-ages[exclude>0]
 dim(rCH)
 
 
@@ -81,7 +85,6 @@ dim(rCH)
 n.ind<-dim(rCH)[1]		## defines the number of individuals
 n.years<-dim(rCH)[2]  ## defines the number of years
 f <- apply(rCH, 1, get.first)
-
 
 
 
@@ -175,9 +178,9 @@ inits <- function(){list(beta = runif(2, 0, 1),
 parameters <- c("beta", "mean.p")
 
 # MCMC settings
-ni <- 10000
-nt <- 2
-nb <- 5000
+ni <- 3000
+nt <- 1
+nb <- 1000
 nc <- 4
 
 # Call JAGS from R
@@ -190,10 +193,10 @@ AYNAsurv <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\
 # PRODUCE OUTPUT TABLE
 #########################################################################
 
-out<-as.data.frame(MAPRsurv$summary)
-out$parameter<-row.names(MAPRsurv$summary)
+out<-as.data.frame(AYNAsurv$summary)
+out$parameter<-row.names(AYNAsurv$summary)
 out
-write.table(out,"MAPR_Gough_Survival_estimates.csv", sep=",", row.names=F)
+write.table(out,"AYNA_Gough_Survival_estimates.csv", sep=",", row.names=F)
 
 
 
