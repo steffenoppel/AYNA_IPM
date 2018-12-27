@@ -1,0 +1,58 @@
+
+    model {
+    
+    # -------------------------------------------------
+    # Parameters:
+    # phi: survival probability, grouped by age category
+    # p: recapture probability when breeding
+    # -------------------------------------------------
+
+
+    ## Priors and constraints
+      for (i in 1:nind){
+        for (t in f[i]:(n.occasions-1)){
+          logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t]
+          logit(p[i,t]) <- mean.p  + capt.raneff[t]
+        } #t
+      } #i
+    
+    
+    ## AGE-SPECIFIC SURVIVAL 
+    for (age in 1:2){
+      beta[age] ~ dunif(0, 1)                         # Priors for age-specific survival
+      mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
+    }
+
+    ## RANDOM TIME EFFECT ON SURVIVAL AND RECAPTURE 
+    for (t in 1:(n.occasions-1)){
+      surv.raneff[t] ~ dnorm(0, tau.surv)
+      capt.raneff[t] ~ dnorm(0, tau.capt)
+    }
+    
+
+    sigma.surv ~ dunif(0, 10)                     # Prior for standard deviation of survival
+    tau.surv <- pow(sigma.surv, -2)
+    
+    sigma.capt ~ dunif(0, 10)                     # Prior for standard deviation of capture
+    tau.capt <- pow(sigma.capt, -2)
+    mean.p ~ dunif(0, 1)                          # Prior for mean recapture
+    logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
+    
+
+
+    # Likelihood 
+    for (i in 1:nind){
+      # Define latent state at first capture
+      z[i,f[i]] <- 1
+        for (t in (f[i]+1):n.occasions){
+          # State process
+          z[i,t] ~ dbern(mu1[i,t])
+          mu1[i,t] <- phi * z[i,t-1]
+          # Observation process
+          y[i,t] ~ dbern(mu2[i,t])
+          mu2[i,t] <- p * z[i,t]
+        } #t
+      } #i
+
+    }
+    
