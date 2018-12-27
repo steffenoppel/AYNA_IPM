@@ -86,7 +86,7 @@ FECUND
 
 ### PLOT TO SPOT ANY OUTLIERS OF BREEDING SUCCESS
 ggplot(FECUND, aes(x=Year,y=BREED_SUCC)) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
-fwrite(FECUND,"AYNA_breed_success_1982_2017.csv")
+#fwrite(FECUND,"AYNA_breed_success_1982_2017.csv")
 
 
 
@@ -100,7 +100,9 @@ fwrite(FECUND,"AYNA_breed_success_1982_2017.csv")
 
 ### summary of population counts of breeding pairs per year and colony
 POPSIZE<-counts %>% filter(Species==SP) %>%
-  filter(Colony %in% c("Area 1","Area 2","Area 3","Area 4","Area 5","Area 6","Area 7","Area 9","Area 10")) %>%
+  mutate(Colony=ifelse(grepl("Cavern",Colony,perl=T,ignore.case = T)==T,"Area 11",as.character(Colony))) %>%
+  mutate(Colony=ifelse(grepl("Tumbledown",Colony,perl=T,ignore.case = T)==T,"Area 8",as.character(Colony))) %>%
+  #filter(Colony %in% c("Area 1","Area 2","Area 3","Area 4","Area 5","Area 6","Area 7","Area 8","Area 9","Area 10")) %>%
   mutate(Year=year(Date)) %>%
   filter(Breed_Stage=="INCU") %>%
   filter(Cohort %in% c("INCU","TERR","AON")) %>%
@@ -108,7 +110,7 @@ POPSIZE<-counts %>% filter(Species==SP) %>%
   group_by(Year,Colony) %>%
   summarise(N=sum(Number, na.rm=T)) %>%
   spread(key=Colony, value=N)
-POPSIZE[19:35,]
+POPSIZE[19:37,]
 fwrite(POPSIZE,"AYNA_pop_counts_1982_2018.csv")
 
 
