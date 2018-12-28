@@ -46,12 +46,14 @@ f <- apply(CH, 1, get.first)
 ## REMOVE BIRDS THAT ARE TOO YOUNG TO HAVE HAD A CHANCE TO RETURN
 tooyoung<-ifelse(f>(dim(CH)[2]-5),ifelse(AYNA$AGE==0,1,0),0)
 CH<-CH[tooyoung==0,]  ## removes individuals that were ringed as chicks <5 years before end of time series
+f <- apply(CH, 1, get.first)
+toolate<-ifelse(f==dim(CH)[2],1,0)
+CH<-CH[toolate==0,]  ## removes individuals ringed in last occasion end of time series
 ages<-AYNA$AGE[tooyoung==0]
 
 ## CREATE BLANK AGE MATRIX
-AGEMAT<-CH
-AGEMAT[,]<-2 ### set default to adult survival, and then insert the juvenile years
-n.occ<-dim(AGEMAT)[2]
+AGEMAT<-matrix(2,nrow=nrow(CH),ncol=ncol(CH))
+n.occ<-ncol(CH)
 
 ## LOOP OVER EACH BIRD RINGED AND SET PRE-CAPTURE DATA TO NA AND ADJUST AGE
 for (l in 1:nrow(AGEMAT)){
@@ -63,7 +65,9 @@ for (l in 1:nrow(AGEMAT)){
   if(young==0){AGEMAT[l,firstocc:lastjuv]<-1}  ## sets all juvenile years to 1
 }
 
-
+### CHECK WHETHER IT LOOKS OK ###
+head(AGEMAT)
+head(CH)
 
 
 #########################################################################
@@ -79,6 +83,9 @@ rCH<-rCH[exclude>0,]        ## removes individuals that were not observed in the
 AGEMAT<-AGEMAT[exclude>0,]  ## removes individuals that were not observed in the last 19 years
 ages<-ages[exclude>0]
 dim(rCH)
+dim(AGEMAT)
+head(rCH)
+head(AGEMAT)
 
 
 ## PREPARE CONSTANTS
@@ -87,9 +94,14 @@ n.years<-dim(rCH)[2]  ## defines the number of years
 f <- apply(rCH, 1, get.first)
 
 
-
-
-
+## CREATE MATRIX for INITIAL STATE Z
+zinit<-rCH
+for (l in 1:nrow(zinit)){
+  firstocc<-get.first(zinit[l,])
+  zinit[l,1:firstocc]<-NA  ## sets everything up to first contact to NA
+  zinit[l,(firstocc+1):n.years]<-1  ## alive after first contact
+}
+dim(zinit)
 
 
 
@@ -109,10 +121,20 @@ cat("
 
 
     ## Priors and constraints
+
+      ### RECAPTURE PROBABILITY
+      mean.p ~ dunif(0, 1)                          # Prior for mean recapture
+      logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
+
+      for (t in 1:n.occasions){
+          logit(p[t]) <- logit.p  + capt.raneff[t]
+          capt.raneff[t] ~ dnorm(0, tau.capt)
+      }
+      
+      ### SURVIVAL PROBABILITY
       for (i in 1:nind){
         for (t in f[i]:(n.occasions-1)){
           logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t]
-          logit(p[i,t]) <- mean.p  + capt.raneff[t]
         } #t
       } #i
     
@@ -123,20 +145,18 @@ cat("
       mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
     }
 
-    ## RANDOM TIME EFFECT ON SURVIVAL AND RECAPTURE 
+    ## RANDOM TIME EFFECT ON SURVIVAL 
     for (t in 1:(n.occasions-1)){
       surv.raneff[t] ~ dnorm(0, tau.surv)
-      capt.raneff[t] ~ dnorm(0, tau.capt)
     }
     
-
+    ### PRIORS FOR RANDOM EFFECTS
     sigma.surv ~ dunif(0, 10)                     # Prior for standard deviation of survival
     tau.surv <- pow(sigma.surv, -2)
     
     sigma.capt ~ dunif(0, 10)                     # Prior for standard deviation of capture
     tau.capt <- pow(sigma.capt, -2)
-    mean.p ~ dunif(0, 1)                          # Prior for mean recapture
-    logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
+
     
 
 
@@ -147,12 +167,21 @@ cat("
         for (t in (f[i]+1):n.occasions){
           # State process
           z[i,t] ~ dbern(mu1[i,t])
-          mu1[i,t] <- phi * z[i,t-1]
+          mu1[i,t] <- phi[i,t-1] * z[i,t-1]
+
           # Observation process
           y[i,t] ~ dbern(mu2[i,t])
-          mu2[i,t] <- p * z[i,t]
+          mu2[i,t] <- p[t] * z[i,t]
         } #t
       } #i
+
+    # DERIVED SURVIVAL PROBABILITIES PER YEAR 
+    for (t in 1:(n.occasions-1)){
+      for (age in 1:2){
+        logit(ann.surv[age,t]) <- mu[age] + surv.raneff[t]
+      }
+    }
+
 
     }
     ",fill = TRUE)
@@ -171,16 +200,17 @@ jags.data <- list(y = rCH, f = f, n.occasions = n.years, nind = n.ind, AGEMAT=AG
 
 # Initial values 
 inits <- function(){list(beta = runif(2, 0, 1),
+                         z = zinit,
                          mean.p = runif(1, 0, 1))}
  
 
 # Parameters monitored
-parameters <- c("beta", "mean.p")
+parameters <- c("ann.surv","beta", "mean.p")
 
 # MCMC settings
-ni <- 3000
+ni <- 25000
 nt <- 1
-nb <- 1000
+nb <- 10000
 nc <- 4
 
 # Call JAGS from R
@@ -203,17 +233,22 @@ write.table(out,"AYNA_Gough_Survival_estimates.csv", sep=",", row.names=F)
 #########################################################################
 # PRODUCE OUTPUT GRAPH
 #########################################################################
+dim(out)
 
-
-out[1:11,] %>% select(c(1,5,2,3,7)) %>%
+pdf("AYNA_survival_Gough_2000_2018.pdf", width=11, height=8)
+out[1:((n.years-1)*2),] %>% select(c(1,5,2,3,7)) %>%
   setNames(c('Mean', 'Median','SD','lcl', 'ucl')) %>%
-  mutate(Year=colnames(rCH)[1:11]) %>%
+  #mutate(Interval=rep(colnames(rCH),each=2)) %>%
+  mutate(Year=rep(seq(2000.5,2017.5,1),each=2)) %>%
+  mutate(Parameter=rep(c("Juvenile","Adult"),n.years-1)) %>%
+
+
   
-  ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+
+  ggplot(aes(y=Median, x=Year, colour=Parameter)) + geom_point(size=2.5)+
   geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
   ylab("Annual adult survival probability") +
-  scale_y_continuous(breaks=seq(0.5,1,0.1), limits=c(0.5,1))+
-  #scale_x_continuous(breaks=seq(2006,2017,1))+
+  scale_y_continuous(breaks=seq(0,1,0.1), limits=c(0,1))+
+  scale_x_continuous(breaks=seq(2000,2020,2))+
   theme(panel.background=element_rect(fill="white", colour="black"), 
         axis.text=element_text(size=18, color="black"), 
         axis.title=element_text(size=20),

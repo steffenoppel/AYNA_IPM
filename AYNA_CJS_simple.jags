@@ -9,10 +9,20 @@
 
 
     ## Priors and constraints
+
+      ### RECAPTURE PROBABILITY
+      mean.p ~ dunif(0, 1)                          # Prior for mean recapture
+      logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
+
+      for (t in 1:n.occasions){
+          logit(p[t]) <- logit.p  + capt.raneff[t]
+          capt.raneff[t] ~ dnorm(0, tau.capt)
+      }
+      
+      ### SURVIVAL PROBABILITY
       for (i in 1:nind){
         for (t in f[i]:(n.occasions-1)){
           logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t]
-          logit(p[i,t]) <- mean.p  + capt.raneff[t]
         } #t
       } #i
     
@@ -23,20 +33,18 @@
       mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
     }
 
-    ## RANDOM TIME EFFECT ON SURVIVAL AND RECAPTURE 
+    ## RANDOM TIME EFFECT ON SURVIVAL 
     for (t in 1:(n.occasions-1)){
       surv.raneff[t] ~ dnorm(0, tau.surv)
-      capt.raneff[t] ~ dnorm(0, tau.capt)
     }
     
-
+    ### PRIORS FOR RANDOM EFFECTS
     sigma.surv ~ dunif(0, 10)                     # Prior for standard deviation of survival
     tau.surv <- pow(sigma.surv, -2)
     
     sigma.capt ~ dunif(0, 10)                     # Prior for standard deviation of capture
     tau.capt <- pow(sigma.capt, -2)
-    mean.p ~ dunif(0, 1)                          # Prior for mean recapture
-    logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
+
     
 
 
@@ -47,12 +55,21 @@
         for (t in (f[i]+1):n.occasions){
           # State process
           z[i,t] ~ dbern(mu1[i,t])
-          mu1[i,t] <- phi * z[i,t-1]
+          mu1[i,t] <- phi[i,t-1] * z[i,t-1]
+
           # Observation process
           y[i,t] ~ dbern(mu2[i,t])
-          mu2[i,t] <- p * z[i,t]
+          mu2[i,t] <- p[t] * z[i,t]
         } #t
       } #i
+
+    # DERIVED SURVIVAL PROBABILITIES PER YEAR 
+    for (t in 1:(n.occasions-1)){
+      for (age in 1:2){
+        logit(ann.surv[age,t]) <- mu[age] + surv.raneff[t]
+      }
+    }
+
 
     }
     
