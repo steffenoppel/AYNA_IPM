@@ -225,8 +225,11 @@ AYNAsurv <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\
 
 out<-as.data.frame(AYNAsurv$summary)
 out$parameter<-row.names(AYNAsurv$summary)
-out
-write.table(out,"AYNA_Gough_Survival_estimates.csv", sep=",", row.names=F)
+export<-out[1:((n.years-1)*2),] %>% select(c(1,5,2,3,7)) %>%
+  setNames(c('Mean', 'Median','SD','lcl', 'ucl')) %>%
+  mutate(Year=rep(seq(2000,2017,1),each=2)) %>%
+  mutate(Parameter=rep(c("Juvenile","Adult"),n.years-1))
+write.table(export,"AYNA_Gough_Survival_estimates.csv", sep=",", row.names=F)
 
 
 
