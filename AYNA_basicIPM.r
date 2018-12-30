@@ -421,7 +421,7 @@ inits <- function(){list(beta = runif(2, 0, 1),
  
 
 # Parameters monitored
-parameters <- c("pop.size","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate")
+parameters <- c("pop.size","ann.fec","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate")
 
 # MCMC settings
 ni <- 25000
@@ -442,35 +442,58 @@ AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gou
 #########################################################################
 
 out<-as.data.frame(AYNApopmodel$summary)
-out$parameter<-row.names(AYNApopmodel$summary)
-export<-out[1:((n.years-1)*2),] %>% select(c(1,5,2,3,7,8)) %>%
+
+## check for convergence ##
+hist(out$Rhat)
+
+
+## write output into file ##
+
+export<-out %>% select(c(1,5,2,3,7,8)) %>%
   setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
-  mutate(Year=rep(seq(2000,2017,1),each=2)) %>%
-  mutate(Parameter=rep(c("Juvenile","Adult"),n.years-1))
+  mutate(parameter=row.names(AYNApopmodel$summary)) %>%
+  mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
+  mutate(Year=c(rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,4)))
+
+write.table(export,"AYNA_Gough_IPM_estimates.csv", sep=",", row.names=F)
 
 
-
-write.table(export,"AYNA_Gough_Survival_estimates.csv", sep=",", row.names=F)
 
 
 
 #########################################################################
-# PRODUCE OUTPUT GRAPH
+# PRODUCE OUTPUT GRAPH THAT SHOWS ESTIMATES FOR POPULATION TREND
 #########################################################################
-dim(out)
-
-pdf("AYNA_survival_Gough_2000_2018.pdf", width=11, height=8)
-out[1:((n.years-1)*2),] %>% select(c(1,5,2,3,7)) %>%
-  setNames(c('Mean', 'Median','SD','lcl', 'ucl')) %>%
-  #mutate(Interval=rep(colnames(rCH),each=2)) %>%
-  mutate(Year=rep(seq(2000.5,2017.5,1),each=2)) %>%
-  mutate(Parameter=rep(c("Juvenile","Adult"),n.years-1)) %>%
 
 
-  
-  ggplot(aes(y=Median, x=Year, colour=Parameter)) + geom_point(size=2.5)+
+## CREATE PLOT FOR POP TREND AND SAVE AS PDF
+pdf("AYNA_IPM_pop_trend_Gough_2000_2018.pdf", width=11, height=8)
+export %>% filter(grepl("pop.size",parameter,perl=T,ignore.case = T)) %>%
+  ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+ geom_line()+
   geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
-  ylab("Annual adult survival probability") +
+  ylab("Number of AYNA pairs in Gough study areas") +
+  scale_y_continuous(breaks=seq(0,1000,100), limits=c(0,1000))+
+  scale_x_continuous(breaks=seq(2000,2018,2))+
+  theme(panel.background=element_rect(fill="white", colour="black"), 
+        axis.text=element_text(size=18, color="black"), 
+        axis.title=element_text(size=20),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank())
+
+dev.off()
+
+
+
+## CREATE PLOT FOR POP TREND AND SAVE AS PDF
+pdf("AYNA_IPM_survivald_Gough_2000_2018.pdf", width=11, height=8)
+export %>% filter(grepl("survival",parameter,perl=T,ignore.case = T)) %>%
+
+  ggplot(aes(y=Median, x=Year, colour=parameter)) + geom_point(size=2.5)+
+  geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
+  ylab("Apparent annual survival probability") +
   scale_y_continuous(breaks=seq(0,1,0.1), limits=c(0,1))+
   scale_x_continuous(breaks=seq(2000,2020,2))+
   theme(panel.background=element_rect(fill="white", colour="black"), 
