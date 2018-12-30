@@ -257,8 +257,8 @@ cat("
 
       ## THE PRE-BREEDING YEARS ##
     
-      nestlings[tt] <- ann.fec[tt] * 0.5 * pop.size[tt]                                                     ### number of locally produced FEMALE chicks
-      JUV[tt] ~ dpois(min(1,nestlings[tt]))                                                                     ### need a discrete number otherwise dbin will fail, dpois must be >0
+      nestlings[tt] <- ann.fec[tt] * 0.5 * Ntot.breed[tt]                                                     ### number of locally produced FEMALE chicks
+      JUV[tt] ~ dpois(nestlings[tt])                                                                     ### need a discrete number otherwise dbin will fail, dpois must be >0
       N1[tt]  ~ dbin(ann.surv[1,tt-1], round(JUV[tt-1]))                                                    ### number of 1-year old survivors 
       N2[tt] ~ dbin(ann.surv[1,tt-1], round(N1[tt-1]))                                                      ### number of 2-year old survivors
       N3[tt] ~ dbin(ann.surv[1,tt-1], round(N2[tt-1]))                                                       ### number of 3-year old survivors
@@ -268,22 +268,36 @@ cat("
 
       ## THE POTENTIAL RECRUITING YEARS ##
 
-      N6[tt] ~ dbin(ann.surv[1,tt-1], round(N5[tt-1]))                                     ### number of 6-year old survivors
-      N.notrecruited[tt] ~ dbin(ann.surv[2,tt-1], round(non.recruits[tt-1]))               ### number of not-yet-recruited birds surviving from previous year
+      N6[tt] ~ dbin(ann.surv[1,tt-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment
+      N.notrecruited[tt] ~ dbin(ann.surv[2,tt-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
       non.recruits[tt]<-(N6[tt]+N.notrecruited[tt])-ann.recruits[tt]                      ## number of birds that do not recruit is the sum of all available minus the ones that do recruit
 
 
       ## THE BREEDING YEARS ##
       
-      Ntot.breed[tt]<-dpois(min(1,pop.size[tt]))                                           ### the annual number of breeding birds is the estimate from the count SSM
-      ann.recruits[tt] ~ dbin(Ntot.breed[tt]-Nold.breed[tt], imm.rec[tt])           ### this total number comprises a bunch of new recruits, which is the number of total breeders that are not old breeders
+      Ntot.breed[tt] ~ dpois(pop.size[tt])                                           ### the annual number of breeding birds is the estimate from the count SSM
+      ann.recruits[tt] ~ dbin(imm.rec[tt],round(Ntot.breed[tt]-Nold.breed[tt]))           ### this total number comprises a bunch of new recruits, which is the number of total breeders that are not old breeders
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
-      N.non.breed[tt] ~ dbin(skip.prob[tt], N.pot.breed[tt])                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] ~ dbin(skip.prob[tt], round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
 
     
 
     } # tt
+    
+
+
+    ### INITIAL VALUES FOR COMPONENTS FOR YEAR 1 - based on stable stage distribution from previous model
+    
+    JUV[1]<-round(Ntot.breed[1]*0.5*ann.fec[1])
+    N1[1]<-round(Ntot.breed[1]*0.17574058)
+    N2[1]<-round(Ntot.breed[1]*0.11926872)
+    N3[1]<-round(Ntot.breed[1]*0.10201077)
+    N4[1]<-round(Ntot.breed[1]*0.08725001)
+    N5[1]<-round(Ntot.breed[1]*0.07462511)
+    non.recruits[1]<-round(Ntot.breed[1]*0.3147774)
+    Ntot.breed[1]<-sum(y.count[1,])
+    N.non.breed[1]<- round(Ntot.breed[1]*0.12632740)
     
     
     
@@ -314,7 +328,7 @@ cat("
     # 2.3. Likelihood for fecundity: Poisson regression from the number of surveyed broods
     # -------------------------------------------------
     for (t in 1:(T-1)){
-      J[t] ~ dpois(min(1,rho.fec[t]))
+      J[t] ~ dpois(rho.fec[t])
       rho.fec[t] <- R[t]*ann.fec[t]
     } #	close loop over every year in which we have fecundity data
     
@@ -407,12 +421,12 @@ inits <- function(){list(beta = runif(2, 0, 1),
  
 
 # Parameters monitored
-parameters <- c("ann.surv","pop.growth.rate", "pop.size","skip.prob","imm.rec","beta")
+parameters <- c("pop.size","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate")
 
 # MCMC settings
-ni <- 25
+ni <- 25000
 nt <- 1
-nb <- 10
+nb <- 10000
 nc <- 4
 
 # Call JAGS from R
@@ -423,43 +437,19 @@ AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gou
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #########################################################################
-# PRODUCE OUTPUT TABLE
+# PRODUCE OUTPUT TABLES
 #########################################################################
 
-out<-as.data.frame(AYNAsurv$summary)
-out$parameter<-row.names(AYNAsurv$summary)
-export<-out[1:((n.years-1)*2),] %>% select(c(1,5,2,3,7)) %>%
-  setNames(c('Mean', 'Median','SD','lcl', 'ucl')) %>%
+out<-as.data.frame(AYNApopmodel$summary)
+out$parameter<-row.names(AYNApopmodel$summary)
+export<-out[1:((n.years-1)*2),] %>% select(c(1,5,2,3,7,8)) %>%
+  setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
   mutate(Year=rep(seq(2000,2017,1),each=2)) %>%
   mutate(Parameter=rep(c("Juvenile","Adult"),n.years-1))
+
+
+
 write.table(export,"AYNA_Gough_Survival_estimates.csv", sep=",", row.names=F)
 
 
