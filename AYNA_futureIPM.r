@@ -402,7 +402,7 @@ cat("
       ## THE PRE-BREEDING YEARS ##
     
       nestlings[tt] <- round(ann.fec[FUT.int[tt]] * 0.5 * Ntot.breed[tt])                                             ### number of locally produced FEMALE chicks
-      N1[tt]  ~ dbin(ann.surv[1,FUT.int[tt]-1], round(JUV[tt-1]))                                                    ### number of 1-year old survivors 
+      N1[tt]  ~ dbin(ann.surv[1,FUT.int[tt]-1], round(nestlings[tt]))                                                    ### number of 1-year old survivors 
       N2[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N1[tt-1]))                                                      ### number of 2-year old survivors
       N3[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N2[tt-1]))                                                       ### number of 3-year old survivors
       N4[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N3[tt-1]))                                                       ### number of 4-year old survivors
