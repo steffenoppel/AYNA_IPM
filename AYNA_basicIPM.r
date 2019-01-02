@@ -488,7 +488,7 @@ dev.off()
 
 
 ## CREATE PLOT FOR POP TREND AND SAVE AS PDF
-pdf("AYNA_IPM_survivald_Gough_2000_2018.pdf", width=11, height=8)
+pdf("AYNA_IPM_survival_Gough_2000_2018.pdf", width=11, height=8)
 export %>% filter(grepl("survival",parameter,perl=T,ignore.case = T)) %>%
 
   ggplot(aes(y=Median, x=Year, colour=parameter)) + geom_point(size=2.5)+
