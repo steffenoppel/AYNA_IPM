@@ -183,7 +183,7 @@ cat("
     for (t in 1:T){  
       ann.fec[t] ~ dunif(0.2,0.8)           # Priors on fecundity can range from 0-1 chicks per pair (constrained based on our data)
       imm.rec[t]~dunif(0.15,0.75)                ## RECRUITMENT PROBABILITY COULD SET MORE INFORMATIVE PRIOR HERE
-      skip.prob[t]~dunif(0.1,0.34)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      skip.prob[t]~dunif(0.15,0.45)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
     } #t
 
 
@@ -486,9 +486,9 @@ inits <- function(){list(beta = runif(2, 0, 1),
 parameters <- c("Ntot.breed","ann.fec","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate","future.growth.rate")
 
 # MCMC settings
-ni <- 250
+ni <- 25000
 nt <- 1
-nb <- 100
+nb <- 10000
 nc <- 4
 
 # Call JAGS from R
@@ -523,9 +523,9 @@ export<-out %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2029,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,4)))
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,5)))
 
-write.table(export,"AYNA_Gough_IPM_estimates.csv", sep=",", row.names=F)
+write.table(export,"AYNA_Gough_IPM_estimates_projection.csv", sep=",", row.names=F)
 
 
 
@@ -537,20 +537,19 @@ write.table(export,"AYNA_Gough_IPM_estimates.csv", sep=",", row.names=F)
 
 
 ## CREATE PLOT FOR POP TREND AND SAVE AS PDF
-pdf("AYNA_IPM_pop_trend_Gough_2000_2029.pdf", width=11, height=8)
+pdf("AYNA_IPM_pop_trend_Gough_2000_2029.pdf", width=12, height=8)
 export %>% filter(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)) %>%
   ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+ geom_line()+
   geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
   ylab("Number of AYNA pairs in Gough study areas") +
-  scale_y_continuous(breaks=seq(0,1500,100), limits=c(0,1500))+
-  scale_x_continuous(breaks=seq(2000,2030,2))+
+  scale_y_continuous(breaks=seq(0,1000,100), limits=c(0,1000))+
+  scale_x_continuous(breaks=seq(2000,2028,2))+
   theme(panel.background=element_rect(fill="white", colour="black"), 
         axis.text=element_text(size=18, color="black"), 
         axis.title=element_text(size=20),
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(), 
         panel.border = element_blank())
-
 dev.off()
 
 
