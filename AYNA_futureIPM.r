@@ -29,9 +29,11 @@
 # revised 2 July after exploring if survival of potential recruiters should be imm or ad survival - future trajectory changes if using imm survival (negative trend) vs. ad survival (stable)
 # decided to use adult survival for N6 upwards, as that matches the age-matrix of the CJS model
 
-# NEXT STEPS: build in 4 scenarios - mouse eradication, bycatch reduction, both, neither
+# revised 2 July : build in 4 scenarios - mouse eradication, bycatch reduction, both, neither
 # mouse eradication: fec goes from 0.56 - 0.69
 # bycatch reduction: use surv from last 4 years rather than mean across earlier years
+
+# output processing outsourced to AYNA_IPM_result_summaries.r
 
 
 
@@ -579,7 +581,7 @@ cat("
     
       ## RANDOMLY DRAW DEMOGRAPHIC RATES FROM PREVIOUS YEARS WHILE AVOIDING THAT INDEX BECOMES 0
     
-      FUT[tt] ~ dunif(1.5,(T-0.5))           ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
+      FUT[tt] ~ dunif(1.5,15.5)           ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
       FUT.int[tt]<-round(FUT[tt])
       fut.fec[tt] ~ dnorm(mean.fec,tau.fec)   ### CHANGE FROM mean.fec to 0.69 + 0.16 from Caravaggi et al. 2018 for eradication scenario
     
@@ -685,9 +687,9 @@ inits <- function(){list(beta = runif(2, 0, 1),
 parameters <- c("Ntot.breed","ann.fec","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","bycatch")  #,"hookpod"
 
 # MCMC settings
-ni <- 2500
+ni <- 25000
 nt <- 10
-nb <- 1000
+nb <- 10000
 nc <- 4
 
 
@@ -701,105 +703,21 @@ AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\G
 
 
 
-# ### repeat same run if errors occur
-# for (i in 1:250){
-#   try(AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_longline_v1.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T), silent = TRUE)
-#   if('AYNApopmodel' %in% as.character(ls()))stop("JAGS IPM successfully completed")
-# } ### closes the loop over 150 attempts
-
-
-
 
 #########################################################################
-# PRODUCE OUTPUT TABLES
+# SAVE OUTPUT - RESULT PROCESSING in AYNA_IPM_result_summaries.r
 #########################################################################
-
-out<-as.data.frame(AYNApopmodel$summary)
-
-## check for convergence ##
-hist(out$Rhat)
-
-
-## write output into file ##
-
-export<-out %>% select(c(1,5,2,3,7,8)) %>%
-  setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
-  mutate(parameter=row.names(AYNApopmodel$summary)) %>%
-  mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-  mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
-  mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7)))
-tail(export)
-#write.table(export,"AYNA_Gough_IPM_estimates_v2.csv", sep=",", row.names=F)
+setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
+save.image("AYNA_IPM_output_4scenarios.RData")
 
 
 
 
 
-#########################################################################
-# PRODUCE OUTPUT GRAPH THAT SHOWS ESTIMATES FOR POPULATION TREND
-#########################################################################
-
-
-## CREATE PLOT FOR POP TREND AND SAVE AS PDF
-pdf("AYNA_IPM_pop_trend_Gough_2000_2029.pdf", width=12, height=8)
-export %>% filter(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)) %>%
-  ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+ geom_line()+
-  geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
-  ylab("Number of AYNA pairs in Gough study areas") +
-  scale_y_continuous(breaks=seq(200,1500,100), limits=c(200,1500))+
-  scale_x_continuous(breaks=seq(2000,2028,2))+
-  theme(panel.background=element_rect(fill="white", colour="black"), 
-        axis.text=element_text(size=18, color="black"), 
-        axis.title=element_text(size=20),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), 
-        panel.border = element_blank())
-dev.off()
-
-
-
-## CREATE PLOT FOR SURVIVAL AND SAVE AS PDF
-pdf("AYNA_IPM_survival_Gough_2000_2018.pdf", width=11, height=8)
-export %>% filter(grepl("survival",parameter,perl=T,ignore.case = T)) %>%
-
-  ggplot(aes(y=Median, x=Year, colour=parameter)) + geom_point(size=2.5)+
-  geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
-  geom_hline(yintercept=0.7809829, colour="#619CFF") +
-  geom_hline(yintercept=0.9176491, colour="#619CFF") +
-  ylab("Apparent annual survival probability") +
-  scale_y_continuous(breaks=seq(0,1,0.1), limits=c(0,1))+
-  scale_x_continuous(breaks=seq(2000,2020,2))+
-  theme(panel.background=element_rect(fill="white", colour="black"), 
-        axis.text=element_text(size=18, color="black"), 
-        axis.title=element_text(size=20),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), 
-        panel.border = element_blank())
-
-dev.off()
 
 
 
 
-
-## CREATE PLOT FOR FECUNDITY AND SAVE AS PDF
-pdf("AYNA_IPM_fecundity_Gough_2000_2018.pdf", width=11, height=8)
-export %>% filter(grepl("ann.fec",parameter,perl=T,ignore.case = T)) %>%
-  
-  ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+
-  geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
-  ylab("Annual fecundity") +
-  scale_y_continuous(breaks=seq(0,1,0.1), limits=c(0,1))+
-  scale_x_continuous(breaks=seq(2000,2020,2))+
-  theme(panel.background=element_rect(fill="white", colour="black"), 
-        axis.text=element_text(size=18, color="black"), 
-        axis.title=element_text(size=20),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), 
-        panel.border = element_blank())
-
-dev.off()
 
 
 

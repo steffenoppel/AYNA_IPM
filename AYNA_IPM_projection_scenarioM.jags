@@ -241,7 +241,7 @@
     
       ## RANDOMLY DRAW DEMOGRAPHIC RATES FROM PREVIOUS YEARS WHILE AVOIDING THAT INDEX BECOMES 0
     
-      FUT[tt] ~ dunif(1.5,(T-0.5))           ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
+      FUT[tt] ~ dunif(1.5,15.5)           ### SURVIVAL FROM YEARS BEFORE BYCATCH MITIGATION WAS IMPLEMENTED
       FUT.int[tt]<-round(FUT[tt])
       fut.fec[tt] ~ dnorm(0.69,tau.fec)   ### CHANGE FROM mean.fec to 0.69 + 0.16 from Caravaggi et al. 2018 for eradication scenario
     
