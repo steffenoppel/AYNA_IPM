@@ -332,10 +332,10 @@ N.init[1,]<-as.matrix(AYNA.pop[1,2:12])
 
 
 #########################################################################
-# THIS MODEL DID NOT WORK - ALWAYS INVALID PARENT ERROR SOMEWHERE
+# SPECIFY MODEL IN JAGS
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-sink("AYNA_IPM_projection_longline_v3.jags")
+sink("AYNA_IPM_projection_scenario_0.jags")
 cat("
 
   
@@ -347,6 +347,7 @@ cat("
     # - pre breeding census, female-based assuming equal sex ratio & survival
     # - productivity based on Area 1 nest monitoring data
     # - simplified population process with informed prior for adults skipping breeding and uninformed immatures recruiting
+    # - FOUR future scenarios to project population growth after eradication, bycatch mitigation or no management
     # -------------------------------------------------
     
     #-------------------------------------------------  
@@ -572,15 +573,15 @@ cat("
     #-------------------------------------------------  
     # 4. PROJECTION INTO FUTURE
     #-------------------------------------------------
-    
-    
+
+
     for (tt in (T+1):FUT.YEAR){
     
       ## RANDOMLY DRAW DEMOGRAPHIC RATES FROM PREVIOUS YEARS WHILE AVOIDING THAT INDEX BECOMES 0
     
-      FUT[tt] ~ dunif(15.5,(T-0.5))     ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
+      FUT[tt] ~ dunif(1.5,(T-0.5))           ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
       FUT.int[tt]<-round(FUT[tt])
-      fut.fec[tt] ~ dnorm(mean.fec,tau.fec)
+      fut.fec[tt] ~ dnorm(mean.fec,tau.fec)   ### CHANGE FROM mean.fec to 0.69 + 0.16 from Caravaggi et al. 2018 for eradication scenario
     
     
     
@@ -684,13 +685,19 @@ inits <- function(){list(beta = runif(2, 0, 1),
 parameters <- c("Ntot.breed","ann.fec","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","bycatch")  #,"hookpod"
 
 # MCMC settings
-ni <- 25000
+ni <- 2500
 nt <- 10
-nb <- 10000
+nb <- 1000
 nc <- 4
 
+
+
+
 # Call JAGS from R
-AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_longline_v3.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenario_0.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioM.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 
