@@ -43,7 +43,7 @@ export0<-as.data.frame(AYNAscenario0$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="no management")
 tail(export0)
 
@@ -53,7 +53,7 @@ exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="mouse eradication")
 tail(exportM)
 
@@ -63,7 +63,7 @@ exportB<-as.data.frame(AYNAscenarioB$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="bycatch mitigation")
 tail(exportB)
 
@@ -73,7 +73,7 @@ exportMB<-as.data.frame(AYNAscenarioMB$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="mouse eradication and bycatch mitigation")
 tail(exportMB)
 
@@ -113,6 +113,8 @@ rbind(export0,exportM[exportM$Year>2017,],exportB[exportB$Year>2017,],exportMB[e
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(), 
         panel.border = element_blank())
+
+
 dev.off()
 
 
@@ -175,17 +177,31 @@ dev.off()
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# EXTRACT THE SAMPLES WHERE FUTURE LAMBDA IS POSITIVE 
+# CREATE HISTOGRAM OF FUTURE LAMBDA AND CONTRAST THE FOUR SCENARIOS
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-samplesout<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]]))
-head(samplesout)
+samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>% select(future.growth.rate) %>%
+  mutate(Scenario="no management")
+samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>% select(future.growth.rate) %>%
+  mutate(Scenario="mouse eradication")
+samplesoutMB<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]])) %>% select(future.growth.rate) %>%
+  mutate(Scenario="bycatch mitigation")
+samplesoutB<-as.data.frame(rbind(AYNAscenarioB$samples[[1]],AYNAscenarioB$samples[[2]],AYNAscenarioB$samples[[3]],AYNAscenarioB$samples[[4]])) %>% select(future.growth.rate) %>%
+  mutate(Scenario="mouse eradication and bycatch mitigation")
 
-ggplot(samplesout)+
-  geom_point(aes(x=mean.fec,y=future.growth.rate,width=2))+
-  geom_hline(aes(yintercept=1), color='red', size=2)+   
-  ylab("Future population trend") +
-  xlab("Improvement in survival probability") +
+medlam<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>% group_by(Scenario) %>%
+  summarise(lam=mean(future.growth.rate))
+
+## CREATE HISTOGRAMS WITH MEDIAN LINES
+
+rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
+
+ggplot()+
+  facet_wrap(~Scenario, ncol=2) +
+  geom_histogram(aes(x=future.growth.rate))+
+  geom_vline(data=medlam,aes(xintercept=lam), color='firebrick', size=1)+
+  xlab("Future population trend") +
+  ylab("Frequency of simulations") +
   theme(panel.background=element_rect(fill="white", colour="black"), 
         axis.text.y=element_text(size=16, color="black"),
         axis.text.x=element_text(size=16, color="black", vjust=0.5), 
@@ -197,14 +213,83 @@ ggplot(samplesout)+
         panel.border = element_blank())
 
 
-### find the cutoff for lambda>= 1
-## with a confidence of 90%
 
-samplesout %>% select(improve.surv,fut.lambda) %>%
-  mutate(improve.surv=round(improve.surv,2)) %>%
-  group_by(improve.surv) %>%
-  summarise(lcl=quantile(fut.lambda,0.1)) %>%
-  arrange(desc(lcl))
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# CORRELATION BETWEEN POP GROWTH AND DEMOGRAPHIC PARAMETERS
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  gather(key="parameter", value="value") %>%
+  mutate(Scenario="no management")
+samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  gather(key="parameter", value="value") %>%
+  mutate(Scenario="mouse eradication")
+samplesoutMB<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]])) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  gather(key="parameter", value="value") %>%
+  mutate(Scenario="bycatch mitigation")
+samplesoutB<-as.data.frame(rbind(AYNAscenarioB$samples[[1]],AYNAscenarioB$samples[[2]],AYNAscenarioB$samples[[3]],AYNAscenarioB$samples[[4]])) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  gather(key="parameter", value="value") %>%
+  mutate(Scenario="mouse eradication and bycatch mitigation")
+
+demcorr<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
+  mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
+  mutate(Year=sub(".*\\[(.*)\\].*", "\\1", parameter, perl=TRUE) )
+dim(demcorr)
+head(demcorr)
+
+
+
+################## PLOTTING THE POP GROWTH RATE AGAINST THE DEMOGRAPHIC PARAMETERS ####################################
+pdf("YNAL_lambda_correlations.pdf", width=9, height=9)
+l.fitted<-l.lower<-l.upper<-ad.fitted<-ad.lower<-ad.upper<-ju.fitted<-ju.lower<-ju.upper<-pr.fitted<-pr.lower<-pr.upper<-numeric()
+year<-c(1982:2010)
+n.years<-length(year)
+for (i in 1:(n.years)){
+  l.fitted[i]<-quantile(ipm.YNAL$sims.list$lambda.t[,i], 0.5)
+  l.lower[i]<-quantile(ipm.YNAL$sims.list$lambda.t[,i], 0.025)
+  l.upper[i]<-quantile(ipm.YNAL$sims.list$lambda.t[,i], 0.975)
+  
+  ad.fitted[i]<-quantile(ipm.YNAL$sims.list$phi.ad[,i], 0.5)
+  ad.lower[i]<-quantile(ipm.YNAL$sims.list$phi.ad[,i], 0.025)
+  ad.upper[i]<-quantile(ipm.YNAL$sims.list$phi.ad[,i], 0.975)
+  
+  ju.fitted[i]<-quantile(ipm.YNAL$sims.list$phi.juv[,i], 0.5)
+  ju.lower[i]<-quantile(ipm.YNAL$sims.list$phi.juv[,i], 0.025)
+  ju.upper[i]<-quantile(ipm.YNAL$sims.list$phi.juv[,i], 0.975)
+  
+  pr.fitted[i]<-quantile(ipm.YNAL$sims.list$prod[,i], 0.5)
+  pr.lower[i]<-quantile(ipm.YNAL$sims.list$prod[,i], 0.025)
+  pr.upper[i]<-quantile(ipm.YNAL$sims.list$prod[,i], 0.975)}
+
+
+par(mfrow=c(2,2))
+
+plot(l.fitted~ad.fitted, xlim=c(0.78,1), ylim=c(0.5,1.5), xlab="Adult survival probability",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+segments(ad.lower,l.fitted,ad.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
+segments(ad.fitted,l.lower,ad.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
+test<-cor.test(l.fitted,ad.fitted,alternative = c("two.sided"),method = "spearman")
+text(0.78,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+
+plot(l.fitted~ju.fitted, xlim=c(0.5,1), ylim=c(0.5,1.5), xlab="Juvenile survival probability",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+segments(ju.lower,l.fitted,ju.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
+segments(ju.fitted,l.lower,ju.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
+test<-cor.test(l.fitted,ju.fitted,alternative = c("two.sided"),method = "spearman")
+text(0.5,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+
+plot(l.fitted~pr.fitted, xlim=c(0.2,1.2), ylim=c(0.5,1.5), xlab="Annual productivity",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+segments(pr.lower,l.fitted,pr.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
+segments(pr.fitted,l.lower,pr.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
+test<-cor.test(l.fitted,pr.fitted,alternative = c("two.sided"),method = "spearman")
+text(0.2,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+
+dev.off()
+
 
 
 
