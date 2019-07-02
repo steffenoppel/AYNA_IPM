@@ -16,11 +16,185 @@
 # 6 January 2019 - v4 includes mean demographic rates rather than single-year realisations - this always led to invalid parent error
 # 7 January 2019 - reverted back to v3 but fixed the future growth rate
 
+
+# 20 May 2019 - first attempt to include fishing effort data (provided by Nina DaRocha)
+# 28 May 2019 - corrected ICCAT data after realising they provide lats/longs in quadrants
+
+# revised 10 June 2019 to include the new longline effort data sent by Ana Carneiro - removed 17 June because data from 2017 are questionable
+# revised IPM to base future projection on past 3 years rather than total series - to simulate projection with improved mitigation
+
+# revised 1 July 2019 to include Namibian demersal longline data provided by Nina daRocha (ATF)
+# v3 of IPM includes adjustments to project future pop growth on recent surv and average fecundity
+
+# revised 2 July after exploring if survival of potential recruiters should be imm or ad survival - future trajectory changes if using imm survival (negative trend) vs. ad survival (stable)
+# decided to use adult survival for N6 upwards, as that matches the age-matrix of the CJS model
+
+# NEXT STEPS: build in 4 scenarios - mouse eradication, bycatch reduction, both, neither
+# mouse eradication: fec goes from 0.56 - 0.69
+# bycatch reduction: use surv from last 4 years rather than mean across earlier years
+
+
+
 library(tidyverse)
 library(jagsUI)
 library(data.table)
 #library(nimble)
+filter<-dplyr::filter
+select<-dplyr::select
 
+
+#########################################################################
+# LOAD FISHERY DATA PROVIDED BY JOEL RICE
+#########################################################################
+try(setwd("C:\\STEFFEN\\RSPB\\Marine\\Bycatch"), silent=T)
+nhooks<-fread("SH_longline_effort_30MAY_2019.csv")
+head(nhooks)
+nhooksSummary<-nhooks %>% 
+  filter(lat5>(-40.1)) %>% filter(lat5<(-20.1)) %>%
+  filter(lon5<20.1) %>% filter(lon5>(-15.1)) %>%
+  filter(yy>1999) %>%
+  group_by(yy) %>%
+  summarise(N=sum(hooks))
+
+## scale
+longlineJR<- (nhooksSummary$N-mean(nhooksSummary$N))/sd(nhooksSummary$N)
+
+
+# #########################################################################
+# # LOAD FISHERY DATA FROM ICCAT (n hooks 2000 - 2017)
+# #########################################################################
+# ### more detailed data from Namibia do not cover the same time horizon
+# 
+# ## this CSV file is based on a query that uses QuadID==2 for only SE Atlantic!
+# ## see https://www.iccat.int/Data/t2ce-ENG.pdf
+# 
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
+nhooks<-fread("N_Hooks2000_2017.csv")
+head(nhooks)
+
+
+#### FIXED WITH QuadID==2
+### format coordinates - these are unbelievably not specified as N or S but 'QuadID' indicates hemisphere
+### extract data from 20-40 S and 20E to 10W
+
+nhooksSummary<-nhooks %>% #mutate(Lat=ifelse(grepl('n',DSetTypeID)==T,Lat,Lat*-1)) %>%
+  #mutate(Lon=ifelse(grepl('w',DSetTypeID)==T,Lon*-1,Lon)) %>%
+  filter(Lat<(40.1)) %>% filter(Lat>(19.9)) %>%
+  filter(Lon<20.1) %>%
+  group_by(YearC) %>%
+  summarise(N=sum(SumOfEff1))
+
+## scale
+longlineICCAT<- (nhooksSummary$N-mean(nhooksSummary$N))/sd(nhooksSummary$N)
+# 
+# 
+# ### load long-line fishing effort from Namibia
+# ### this only goes back to 2009, but in some years is greater than what ICCAT report for SE Atlantic!!
+# 
+# NamLLeff<-fread("Longline_effort_Namibia.csv")
+# head(NamLLeff)
+# 
+# NamLLeffSummary<-NamLLeff %>% 
+#   group_by(Year) %>%
+#   summarise(N=sum(`Number of HOOKS_SET`))
+# 
+# NamLLeffSummary
+# 
+# 
+# 
+# ### load trawling effort from Namibia
+# ### this combines both wet and frozen fish
+# 
+# NamTRwet<-fread("Trawl_effort_Namibia_wet.csv")
+# NamTRfrozen<-fread("Trawl_effort_Namibia_frozen.csv")
+# head(NamTRfrozen)
+# head(NamTRwet)
+# names(NamTRfrozen)<-names(NamTRwet)
+# 
+# NamTrawlSummary<-NamTRwet %>% bind_rows(NamTRfrozen) %>% 
+#   group_by(YEAR) %>%
+#   summarise(N=sum(`DURATION(HOURS)`))
+# NamTrawlSummary
+# 
+# 
+# 
+# 
+
+
+
+#########################################################################
+# LOAD FISHERY DATA PROVIDED BY NAMIBIAN FISHERIES DEPARTMENT
+#########################################################################
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
+nhooks<-fread("Namibia_DemersalLongLine.csv")
+head(nhooks)
+nhooksSummary<-nhooks %>% 
+  filter(Year>1999 & Year<2018) %>%
+  group_by(Year) %>%
+  summarise(N=sum(HOOKS_SET))
+
+## scale
+longlineNAM<- (nhooksSummary$N-mean(nhooksSummary$N))/sd(nhooksSummary$N)
+
+
+
+
+
+
+### PLOT THE THREE DATASETS TOGETHER ON ONE GRAPH
+plotdat<- data.frame(Year=rep(seq(2000,2017), 3), N=c(longlineJR, longlineICCAT, longlineNAM), Source=rep(c("Joel Rice","ICCAT","Namibia"), each=18))
+
+ggplot(data=plotdat) +
+  geom_line(aes(x=Year, y=N, col=Source), size=2) +
+  scale_x_continuous(name="Year", limits=c(2000,2018), breaks=seq(2000,2018,2)) +
+  scale_y_continuous(name="Longline fishing effort (standardized)", limits=c(-3,3), breaks=seq(-3,3,0.5)) +
+  theme(panel.background=element_rect(fill="white", colour="black"),
+        axis.text.y=element_text(size=18, color="black"),
+        axis.text.x=element_text(size=14, color="black", angle=45, vjust=0.5),
+        axis.title=element_text(size=20),
+        strip.text.x=element_text(size=18, color="black"),
+        strip.background=element_rect(fill="white", colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank())
+
+
+
+# ### ESTIMATE CORRELATION WITH SURVIVAL ESTIMATES
+# ## THERE IS A REASONABLE POSITIVE CORRELATION
+# 
+# try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM"), silent=T)
+# AYNA<-fread("AYNA_Gough_IPM_estimates.csv")
+# head(AYNA)
+# surv<-AYNA %>% filter(parameter=="adult.survival") %>%
+#   filter(Year!='mean') %>%
+#   select(Year,Mean,Median)
+# 
+# cor.test(surv$Median,log(nhooksSummary$N))
+# plot(surv$Median~log(nhooksSummary$N))
+# #cor.test(surv$Median,lag(nhooksSummary$N,2))
+# #cor.test(surv$Median,lead(nhooksSummary$N,2))
+# #cor.test(surv$Median[8:17],NamLLeffSummary$N)
+# 
+# 
+# # surv<-AYNA %>% filter(parameter=="adult.survival") %>%
+# #   filter(Year %in% c('2009','2010','2016','2017')) %>%
+# #   select(Year,Mean,Median)
+# # 
+# # cor.test(surv$Mean,NamTrawlSummary$N)
+
+
+
+
+#########################################################################
+# INCORPORATE BYCATCH MITIGATION ADOPTION
+#########################################################################
+
+mitigation=c(rep(1,13),0.8,0.6,0.4,0.2,0.1)
+nhooksSummary$Neff<-nhooksSummary$N*mitigation
+
+## scale
+longlineNAM<- (nhooksSummary$Neff-mean(nhooksSummary$Neff))/sd(nhooksSummary$Neff)
 
 
 #########################################################################
@@ -31,8 +205,8 @@ library(data.table)
 
 #### CMR SURVIVAL DATA ######
 
-try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\AYNA_IPM"), silent=T)
-#try(setwd("S:\\ConSci\\DptShare\\SteffenOppel\\RSPB\\UKOT\\Gough\\ANALYSIS\\AYNA_IPM"), silent=T)
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM"), silent=T)
+#try(setwd("S:\\ConSci\\DptShare\\SteffenOppel\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM"), silent=T)
 AYNA<-fread("AYNA_simple_encounter_history_1982_2018.csv")
 names(AYNA)
 CH<-as.matrix(AYNA[,3:39], dimnames=F)
@@ -160,10 +334,11 @@ N.init[1,]<-as.matrix(AYNA.pop[1,2:12])
 #########################################################################
 # THIS MODEL DID NOT WORK - ALWAYS INVALID PARENT ERROR SOMEWHERE
 #########################################################################
-
-sink("AYNA_IPM_projection_v3b.jags")
+setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
+sink("AYNA_IPM_projection_longline_v3.jags")
 cat("
 
+  
     model {
     #-------------------------------------------------
     # integrated population model for the Gough AYNA population
@@ -225,7 +400,7 @@ cat("
     ### SURVIVAL PROBABILITY
     for (i in 1:nind){
       for (t in f[i]:(T-1)){
-        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t]
+        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t] + bycatch*longline[t]
       } #t
     } #i
     
@@ -249,8 +424,10 @@ cat("
     tau.capt <- pow(sigma.capt, -2)
     
     
-    
-    
+    ### PRIOR FOR BYCATCH EFFECTS
+    bycatch ~ dnorm(0,tau.byc)
+    sigma.byc ~ dunif(0, 10)                     # Prior for standard deviation of capture    
+    tau.byc <- pow(sigma.byc, -2)
     
     
     #-------------------------------------------------  
@@ -276,7 +453,7 @@ cat("
     
       ## THE POTENTIAL RECRUITING YEARS ##
     
-      N6[tt] ~ dbin(ann.surv[1,tt-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment
+      N6[tt] ~ dbin(ann.surv[2,tt-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
       N.notrecruited[tt] ~ dbin(ann.surv[2,tt-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
       non.recruits[tt]<-(N6[tt]+N.notrecruited[tt])-ann.recruits[tt]                      ## number of birds that do not recruit is the sum of all available minus the ones that do recruit
     
@@ -288,8 +465,6 @@ cat("
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
       N.non.breed[tt] ~ dbin(skip.prob[tt], round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
-    
-    
     
     } # tt
     
@@ -349,9 +524,12 @@ cat("
     
     # Likelihood 
     for (i in 1:nind){
+
       # Define latent state at first capture
       z[i,f[i]] <- 1
+
       for (t in (f[i]+1):T){
+    
         # State process
         z[i,t] ~ dbern(mu1[i,t])
         mu1[i,t] <- phi[i,t-1] * z[i,t-1]
@@ -379,14 +557,17 @@ cat("
     
     ## DERIVED POPULATION SIZE PER YEAR 
     for (t in 1:T){
-      pop.size[t]<-sum(N.est[t,1:n.sites])
+      pop.size[t]<-max(10,sum(N.est[t,1:n.sites]))               ## introduced max to prevent this number from being 0 which leads to invalid parent error on Ntot.breed
     }
     
     
     ## DERIVED OVERALL POPULATION GROWTH RATE 
     pop.growth.rate <- mean(lambda[1:(T-1),1:n.sites])  				# Arithmetic mean for whole time series
     
-    
+    ## DERIVED MEAN FECUNDITY 
+    mean.fec <- mean(ann.fec)
+    sd.fec <- sd(ann.fec)
+    tau.fec <- pow(max(sd.fec,0.01),-2)
     
     #-------------------------------------------------  
     # 4. PROJECTION INTO FUTURE
@@ -397,43 +578,44 @@ cat("
     
       ## RANDOMLY DRAW DEMOGRAPHIC RATES FROM PREVIOUS YEARS WHILE AVOIDING THAT INDEX BECOMES 0
     
-      FUT[tt] ~ dunif(1.5,(T-0.5))
+      FUT[tt] ~ dunif(15.5,(T-0.5))     ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
       FUT.int[tt]<-round(FUT[tt])
+      fut.fec[tt] ~ dnorm(mean.fec,tau.fec)
     
     
     
-    # -------------------------------------------------        
-    # 4.1. System process for future
-    # -------------------------------------------------
+      # -------------------------------------------------        
+      # 4.1. System process for future
+      # -------------------------------------------------
     
-    ## THE PRE-BREEDING YEARS ##
+      ## THE PRE-BREEDING YEARS ##
     
-      nestlings[tt] <- round(ann.fec[FUT.int[tt]] * 0.5 * Ntot.breed[tt])                                             ### number of locally produced FEMALE chicks
-      N1[tt]  ~ dbin(ann.surv[1,FUT.int[tt]-1], round(nestlings[tt-1]))                                                    ### number of 1-year old survivors 
+      nestlings[tt] <- round(fut.fec[tt]* 0.5 * Ntot.breed[tt])                                             ### number of locally produced FEMALE chicks based on average fecundity - to use just one take ann.fec[FUT.int[tt]] 
+      N1[tt]  ~ dbin(ann.surv[1,FUT.int[tt]-1], max(1,round(nestlings[tt-1])))                                                    ### number of 1-year old survivors 
       N2[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N1[tt-1]))                                                      ### number of 2-year old survivors
       N3[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N2[tt-1]))                                                       ### number of 3-year old survivors
       N4[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N3[tt-1]))                                                       ### number of 4-year old survivors
       N5[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N4[tt-1]))                                                       ### number of 5-year old survivors
     
     
-    ## THE POTENTIAL RECRUITING YEARS ##
+      ## THE POTENTIAL RECRUITING YEARS ##
     
-      N6[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment
+      N6[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
       N.notrecruited[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
       non.recruits[tt]<-(N6[tt]+N.notrecruited[tt])-ann.recruits[tt]                                ### number of birds that do not recruit is the sum of all available minus the ones that do recruit
       ann.recruits[tt] ~ dbin(imm.rec[FUT.int[tt]],round(N6[tt]+N.notrecruited[tt]))                       ### new recruits
     
     
-    ## THE BREEDING YEARS ##
+      ## THE BREEDING YEARS ##
     
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                                         ### the annual number of breeding birds is the estimate from the count SSM
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                                            ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
       N.non.breed[tt] ~ dbin(skip.prob[FUT.int[tt]], round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
-
-
-    ## CALCULATE ANNUAL POP GROWTH RATE ##
-      fut.lambda[tt-19] <- Ntot.breed[tt]/Ntot.breed[tt-1]
+    
+    
+      ## CALCULATE ANNUAL POP GROWTH RATE ##
+      fut.lambda[tt-19] <- Ntot.breed[tt]/max(1,Ntot.breed[tt-1])                                 ### inserted safety to prevent denominator being 0
     
     } # tt
     
@@ -445,6 +627,8 @@ cat("
     future.growth.rate <- mean(fut.lambda[1:10])  				# projected ANNUAL growth rate in the future 
     
     }
+    
+    
     
     ",fill = TRUE)
 sink()
@@ -472,9 +656,13 @@ jags.data <- list(y = rCH,
                   J=J,
                   R=R,
                   
+                  ### longline effort data
+                  longline=longlineICCAT,
+                  
                   ### FUTURE PROJECTION
                   FUT.YEAR=n.years+10,
-                  FUT.int=c(seq(1,(n.years-1),1),rep(NA,11))     ## blank vector to hold index for future demographic rates
+                  FUT.int=c(seq(1,(n.years-1),1),rep(NA,11)),
+                  fut.fec=c(rep(0.5,(n.years)),rep(NA,10))     ## blank vector to hold index for future demographic rates
                   )
 
 
@@ -482,6 +670,8 @@ jags.data <- list(y = rCH,
 inits <- function(){list(beta = runif(2, 0, 1),
                          z = zinit,
                          mean.p = runif(1, 0, 1),
+                         bycatch = rnorm(1,0,0.01),
+                         #hookpod = rnorm(1,0,0.01),
                          
                          ### count data
                          sigma.proc=runif(n.sites,0,5),
@@ -491,23 +681,23 @@ inits <- function(){list(beta = runif(2, 0, 1),
  
 
 # Parameters monitored
-parameters <- c("Ntot.breed","ann.fec","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate","future.growth.rate")
+parameters <- c("Ntot.breed","ann.fec","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","bycatch")  #,"hookpod"
 
 # MCMC settings
 ni <- 25000
-nt <- 1
+nt <- 10
 nb <- 10000
 nc <- 4
 
 # Call JAGS from R
-AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\AYNA_IPM\\AYNA_IPM_projection_v3b.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_longline_v3.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 
 # ### repeat same run if errors occur
 # for (i in 1:250){
-#   try(AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\AYNA_IPM\\AYNA_IPM_projection_v3.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T), silent = TRUE)
-#   if('AYNApopmodel' %in% as.character(ls()))stop("WinBUGS IPM successfully completed")
+#   try(AYNApopmodel <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_longline_v1.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T), silent = TRUE)
+#   if('AYNApopmodel' %in% as.character(ls()))stop("JAGS IPM successfully completed")
 # } ### closes the loop over 150 attempts
 
 
@@ -531,9 +721,9 @@ export<-out %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,5)))
-
-write.table(export,"AYNA_Gough_IPM_estimates_projection.csv", sep=",", row.names=F)
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7)))
+tail(export)
+#write.table(export,"AYNA_Gough_IPM_estimates_v2.csv", sep=",", row.names=F)
 
 
 
@@ -550,7 +740,7 @@ export %>% filter(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)) %>%
   ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+ geom_line()+
   geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
   ylab("Number of AYNA pairs in Gough study areas") +
-  scale_y_continuous(breaks=seq(0,1000,100), limits=c(0,1000))+
+  scale_y_continuous(breaks=seq(200,1500,100), limits=c(200,1500))+
   scale_x_continuous(breaks=seq(2000,2028,2))+
   theme(panel.background=element_rect(fill="white", colour="black"), 
         axis.text=element_text(size=18, color="black"), 
@@ -562,7 +752,7 @@ dev.off()
 
 
 
-## CREATE PLOT FOR POP TREND AND SAVE AS PDF
+## CREATE PLOT FOR SURVIVAL AND SAVE AS PDF
 pdf("AYNA_IPM_survival_Gough_2000_2018.pdf", width=11, height=8)
 export %>% filter(grepl("survival",parameter,perl=T,ignore.case = T)) %>%
 
@@ -583,6 +773,26 @@ export %>% filter(grepl("survival",parameter,perl=T,ignore.case = T)) %>%
 dev.off()
 
 
+
+
+
+## CREATE PLOT FOR FECUNDITY AND SAVE AS PDF
+pdf("AYNA_IPM_fecundity_Gough_2000_2018.pdf", width=11, height=8)
+export %>% filter(grepl("ann.fec",parameter,perl=T,ignore.case = T)) %>%
+  
+  ggplot(aes(y=Median, x=Year)) + geom_point(size=2.5)+
+  geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
+  ylab("Annual fecundity") +
+  scale_y_continuous(breaks=seq(0,1,0.1), limits=c(0,1))+
+  scale_x_continuous(breaks=seq(2000,2020,2))+
+  theme(panel.background=element_rect(fill="white", colour="black"), 
+        axis.text=element_text(size=18, color="black"), 
+        axis.title=element_text(size=20),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank())
+
+dev.off()
 
 
 
