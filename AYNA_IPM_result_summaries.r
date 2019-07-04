@@ -40,10 +40,10 @@ load("AYNA_IPM_output_4scenarios.RData")
 export0<-as.data.frame(AYNAscenario0$summary) %>% select(c(1,5,2,3,7,8)) %>%
   setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
   mutate(parameter=row.names(AYNAscenario0$summary)) %>%
-  mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-  mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("ann.surv\\[1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("ann.surv\\[2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="no management")
 tail(export0)
 
@@ -53,7 +53,7 @@ exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="mouse eradication")
 tail(exportM)
 
@@ -63,7 +63,7 @@ exportB<-as.data.frame(AYNAscenarioB$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="bycatch mitigation")
 tail(exportB)
 
@@ -73,7 +73,7 @@ exportMB<-as.data.frame(AYNAscenarioMB$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),4),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
   mutate(Scenario="mouse eradication and bycatch mitigation")
 tail(exportMB)
 
@@ -89,7 +89,7 @@ tail(exportMB)
 #########################################################################
 # PRODUCE OUTPUT GRAPH THAT SHOWS ESTIMATES FOR POPULATION TREND
 #########################################################################
-pdf("AYNA_IPM_pop_trend_Gough_2000_2029_management.pdf", width=12, height=8)
+pdf("AYNA_IPM_pop_trend_Gough_2000_2029_management.pdf", width=14, height=8)
 
 ## COLLATE DATA FOR ALL 4 SCENARIOS
 rbind(export0,exportM[exportM$Year>2017,],exportB[exportB$Year>2017,],exportMB[exportMB$Year>2017,]) %>% filter(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)) %>%
@@ -193,7 +193,7 @@ medlam<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>% group_by(Sce
   summarise(lam=mean(future.growth.rate))
 
 ## CREATE HISTOGRAMS WITH MEDIAN LINES
-
+pdf("AYNA_future_growth_rate_Gough_management.pdf", width=11, height=9)
 rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
 
 ggplot()+
@@ -212,6 +212,8 @@ ggplot()+
         panel.grid.minor = element_blank(), 
         panel.border = element_blank())
 
+dev.off()
+
 
 
 
@@ -220,55 +222,89 @@ ggplot()+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
   gather(key="parameter", value="value") %>%
   mutate(Scenario="no management")
 samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
   gather(key="parameter", value="value") %>%
   mutate(Scenario="mouse eradication")
 samplesoutMB<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
   gather(key="parameter", value="value") %>%
   mutate(Scenario="bycatch mitigation")
 samplesoutB<-as.data.frame(rbind(AYNAscenarioB$samples[[1]],AYNAscenarioB$samples[[2]],AYNAscenarioB$samples[[3]],AYNAscenarioB$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance) %>%
+  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
   gather(key="parameter", value="value") %>%
   mutate(Scenario="mouse eradication and bycatch mitigation")
 
 demcorr<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
-  mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-  mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
-  mutate(Year=sub(".*\\[(.*)\\].*", "\\1", parameter, perl=TRUE) )
+  mutate(Year=sub(".*\\[(.*)\\].*", "\\1", parameter, perl=TRUE)) %>%
+  mutate(Year=ifelse(grepl(",",Year),as.numeric(strsplit(Year,",", perl=TRUE)[2]),as.numeric(Year))) %>%
+  mutate(parameter=ifelse(grepl("ann.surv\\[1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("ann.surv\\[2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter))%>%
+  mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case = T)==T,"fecundity",parameter))%>%
+  mutate(parameter=ifelse(grepl("imm.rec",parameter,perl=T,ignore.case = T)==T,"recruitment",parameter))%>%
+  mutate(parameter=ifelse(grepl("skip.",parameter,perl=T,ignore.case = T)==T,"breed.propensity",parameter))%>%
+  mutate(parameter=ifelse(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)==T,"pop.size",parameter)) %>%
+  arrange(Year,parameter)
+
 dim(demcorr)
 head(demcorr)
+unique(demcorr$parameter)
+unique(demcorr$Year)
+
+
+## CALCULATE QUANTILES AND LAMBDA as pop.size/lag(pop.size)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 ################## PLOTTING THE POP GROWTH RATE AGAINST THE DEMOGRAPHIC PARAMETERS ####################################
 pdf("YNAL_lambda_correlations.pdf", width=9, height=9)
-l.fitted<-l.lower<-l.upper<-ad.fitted<-ad.lower<-ad.upper<-ju.fitted<-ju.lower<-ju.upper<-pr.fitted<-pr.lower<-pr.upper<-numeric()
-year<-c(1982:2010)
+l.fitted<-l.lower<-l.upper<-ad.fitted<-ad.lower<-ad.upper<-ju.fitted<-ju.lower<-ju.upper<-pr.fitted<-pr.lower<-pr.upper<-bp.fitted<-bp.lower<-bp.upper<-rec.fitted<-rec.lower<-rec.upper<-numeric()
+year<-c(2000:2018)
 n.years<-length(year)
-for (i in 1:(n.years)){
-  l.fitted[i]<-quantile(ipm.YNAL$sims.list$lambda.t[,i], 0.5)
-  l.lower[i]<-quantile(ipm.YNAL$sims.list$lambda.t[,i], 0.025)
-  l.upper[i]<-quantile(ipm.YNAL$sims.list$lambda.t[,i], 0.975)
+for (i in 1:(n.years-1)){
+  l.fitted[i]<-quantile(AYNAscenario0$sims.list$Ntot.breed[,i+1]/AYNAscenario0$sims.list$Ntot.breed[,i], 0.5)
+  l.lower[i]<-quantile(AYNAscenario0$sims.list$Ntot.breed[,i+1]/AYNAscenario0$sims.list$Ntot.breed[,i], 0.025)
+  l.upper[i]<-quantile(AYNAscenario0$sims.list$Ntot.breed[,i+1]/AYNAscenario0$sims.list$Ntot.breed[,i], 0.975)
   
-  ad.fitted[i]<-quantile(ipm.YNAL$sims.list$phi.ad[,i], 0.5)
-  ad.lower[i]<-quantile(ipm.YNAL$sims.list$phi.ad[,i], 0.025)
-  ad.upper[i]<-quantile(ipm.YNAL$sims.list$phi.ad[,i], 0.975)
+  pr.fitted[i]<-quantile(AYNAscenario0$sims.list$ann.fec[,i], 0.5)
+  pr.lower[i]<-quantile(AYNAscenario0$sims.list$ann.fec[,i], 0.025)
+  pr.upper[i]<-quantile(AYNAscenario0$sims.list$ann.fec[,i], 0.975)
   
-  ju.fitted[i]<-quantile(ipm.YNAL$sims.list$phi.juv[,i], 0.5)
-  ju.lower[i]<-quantile(ipm.YNAL$sims.list$phi.juv[,i], 0.025)
-  ju.upper[i]<-quantile(ipm.YNAL$sims.list$phi.juv[,i], 0.975)
+  bp.fitted[i]<-quantile(AYNAscenario0$sims.list$skip.prob[,i], 0.5)
+  bp.lower[i]<-quantile(AYNAscenario0$sims.list$skip.prob[,i], 0.025)
+  bp.upper[i]<-quantile(AYNAscenario0$sims.list$skip.prob[,i], 0.975)
   
-  pr.fitted[i]<-quantile(ipm.YNAL$sims.list$prod[,i], 0.5)
-  pr.lower[i]<-quantile(ipm.YNAL$sims.list$prod[,i], 0.025)
-  pr.upper[i]<-quantile(ipm.YNAL$sims.list$prod[,i], 0.975)}
+  rec.fitted[i]<-quantile(AYNAscenario0$sims.list$imm.rec[,i], 0.5)
+  rec.lower[i]<-quantile(AYNAscenario0$sims.list$imm.rec[,i], 0.025)
+  rec.upper[i]<-quantile(AYNAscenario0$sims.list$imm.rec[,i], 0.975)
+  
+  ad.fitted[i]<-quantile(AYNAscenario0$sims.list$ann.surv[,2,i], 0.5)
+  ad.lower[i]<-quantile(AYNAscenario0$sims.list$ann.surv[,2,i], 0.025)
+  ad.upper[i]<-quantile(AYNAscenario0$sims.list$ann.surv[,2,i], 0.975)
+  
+  ju.fitted[i]<-quantile(AYNAscenario0$sims.list$ann.surv[,1,i], 0.5)
+  ju.lower[i]<-quantile(AYNAscenario0$sims.list$ann.surv[,1,i], 0.025)
+  ju.upper[i]<-quantile(AYNAscenario0$sims.list$ann.surv[,1,i], 0.975)
+  
+  }
 
 
-par(mfrow=c(2,2))
+par(mfrow=c(3,2))
 
 plot(l.fitted~ad.fitted, xlim=c(0.78,1), ylim=c(0.5,1.5), xlab="Adult survival probability",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
 segments(ad.lower,l.fitted,ad.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
@@ -287,6 +323,20 @@ segments(pr.lower,l.fitted,pr.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
 segments(pr.fitted,l.lower,pr.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
 test<-cor.test(l.fitted,pr.fitted,alternative = c("two.sided"),method = "spearman")
 text(0.2,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+
+plot(l.fitted~rec.fitted, xlim=c(0.2,1.2), ylim=c(0.5,1.5), xlab="Immature recruitment",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+segments(rec.lower,l.fitted,rec.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
+segments(rec.fitted,l.lower,rec.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
+test<-cor.test(l.fitted,rec.fitted,alternative = c("two.sided"),method = "spearman")
+text(0.2,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+
+
+plot(l.fitted~bp.fitted, xlim=c(0.2,1.2), ylim=c(0.5,1.5), xlab="Breeding propensity",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+segments(bp.lower,l.fitted,bp.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
+segments(bp.fitted,l.lower,bp.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
+test<-cor.test(l.fitted,bp.fitted,alternative = c("two.sided"),method = "spearman")
+text(0.2,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+
 
 dev.off()
 
