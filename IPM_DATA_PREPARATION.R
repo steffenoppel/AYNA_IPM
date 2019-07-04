@@ -9,7 +9,8 @@
 library(tidyverse)
 library(lubridate)
 library(data.table)
-
+filter<-dplyr::filter
+select<-dplyr::select
 
 
 #############################################################################
@@ -36,7 +37,7 @@ try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\SeabirdSurvival"), silent=T
 load("GOUGH_seabird_CMR_data.RData")
 
 ## import summary file from Alex Bond (origin of data cannot be verified!!)
-try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\AYNA_IPM"), silent=T)
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM"), silent=T)
 backup<-fread("AYNA_summary_1982_2011.csv")
 
 ## filter data for the selected species
@@ -68,7 +69,7 @@ exclude <- nests %>% #filter(Year==2010) %>%
 ### summary of breeding success per year from nests
 FECUND<-nests %>% filter(Species==SP) %>% mutate(count=1) %>%
   filter(!NestID %in% exclude$NestID) %>%
-  filter(Year<2018) %>%
+  filter(Year<2019) %>%
   group_by(Year) %>%
   summarise(n_nests=sum(count),BREED_SUCC=mean(SUCCESS, na.rm=T))
 FECUND
@@ -86,7 +87,7 @@ FECUND
 
 ### PLOT TO SPOT ANY OUTLIERS OF BREEDING SUCCESS
 ggplot(FECUND, aes(x=Year,y=BREED_SUCC)) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
-#fwrite(FECUND,"AYNA_breed_success_1982_2017.csv")
+fwrite(FECUND,"AYNA_breed_success_1982_2018.csv")
 
 
 
@@ -186,5 +187,5 @@ AYNA_EH$AGE<-birdage$MinAge[match(AYNA_EH$BirdID,birdage$BirdID)]
 
 ### EXPORT ENCOUNTER HISTORY
 dim(AYNA_EH)
-fwrite(AYNA_EH[,c(1,39,2:38)],"AYNA_simple_encounter_history_1982_2018.csv")
+fwrite(AYNA_EH[,c(1,40,2:38)],"AYNA_simple_encounter_history_1982_2018.csv")
 

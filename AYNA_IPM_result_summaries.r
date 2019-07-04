@@ -84,6 +84,59 @@ tail(exportMB)
 
 
 
+#########################################################################
+# PRODUCE TABLE 1 THAT SUMMARISES DEMOGRAPHIC RATES
+#########################################################################
+
+export0 %>% mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case = T)==T,"fecundity",parameter))%>%
+    mutate(parameter=ifelse(grepl("imm.rec",parameter,perl=T,ignore.case = T)==T,"recruitment",parameter))%>%
+    mutate(parameter=ifelse(grepl("skip.",parameter,perl=T,ignore.case = T)==T,"breed.propensity",parameter))%>%
+    mutate(parameter=ifelse(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)==T,"pop.size",parameter)) %>%
+  group_by(parameter) %>%
+  summarise(median=mean(Median),lcl=mean(lcl),ucl=mean(ucl))
+
+
+
+
+
+
+
+
+# samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>%
+#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
+#   gather(key="parameter", value="value") %>%
+#   mutate(Scenario="no management")
+# samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>%
+#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
+#   gather(key="parameter", value="value") %>%
+#   mutate(Scenario="mouse eradication")
+# samplesoutMB<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]])) %>%
+#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
+#   gather(key="parameter", value="value") %>%
+#   mutate(Scenario="bycatch mitigation")
+# samplesoutB<-as.data.frame(rbind(AYNAscenarioB$samples[[1]],AYNAscenarioB$samples[[2]],AYNAscenarioB$samples[[3]],AYNAscenarioB$samples[[4]])) %>%
+#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
+#   gather(key="parameter", value="value") %>%
+#   mutate(Scenario="mouse eradication and bycatch mitigation")
+# 
+# demcorr<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
+#   mutate(Year=sub(".*\\[(.*)\\].*", "\\1", parameter, perl=TRUE)) %>%
+#   mutate(Year=ifelse(grepl(",",Year),as.numeric(strsplit(Year,",", perl=TRUE)[2]),as.numeric(Year))) %>%
+#   mutate(parameter=ifelse(grepl("ann.surv\\[1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
+#   mutate(parameter=ifelse(grepl("ann.surv\\[2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter))%>%
+#   mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case = T)==T,"fecundity",parameter))%>%
+#   mutate(parameter=ifelse(grepl("imm.rec",parameter,perl=T,ignore.case = T)==T,"recruitment",parameter))%>%
+#   mutate(parameter=ifelse(grepl("skip.",parameter,perl=T,ignore.case = T)==T,"breed.propensity",parameter))%>%
+#   mutate(parameter=ifelse(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)==T,"pop.size",parameter)) %>%
+#   arrange(Year,parameter)
+# 
+# dim(demcorr)
+# head(demcorr)
+# unique(demcorr$parameter)
+# unique(demcorr$Year)
+
+
+
 
 
 #########################################################################
@@ -217,42 +270,6 @@ dev.off()
 
 
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CORRELATION BETWEEN POP GROWTH AND DEMOGRAPHIC PARAMETERS
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-  gather(key="parameter", value="value") %>%
-  mutate(Scenario="no management")
-samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-  gather(key="parameter", value="value") %>%
-  mutate(Scenario="mouse eradication")
-samplesoutMB<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-  gather(key="parameter", value="value") %>%
-  mutate(Scenario="bycatch mitigation")
-samplesoutB<-as.data.frame(rbind(AYNAscenarioB$samples[[1]],AYNAscenarioB$samples[[2]],AYNAscenarioB$samples[[3]],AYNAscenarioB$samples[[4]])) %>%
-  select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-  gather(key="parameter", value="value") %>%
-  mutate(Scenario="mouse eradication and bycatch mitigation")
-
-demcorr<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
-  mutate(Year=sub(".*\\[(.*)\\].*", "\\1", parameter, perl=TRUE)) %>%
-  mutate(Year=ifelse(grepl(",",Year),as.numeric(strsplit(Year,",", perl=TRUE)[2]),as.numeric(Year))) %>%
-  mutate(parameter=ifelse(grepl("ann.surv\\[1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-  mutate(parameter=ifelse(grepl("ann.surv\\[2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter))%>%
-  mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case = T)==T,"fecundity",parameter))%>%
-  mutate(parameter=ifelse(grepl("imm.rec",parameter,perl=T,ignore.case = T)==T,"recruitment",parameter))%>%
-  mutate(parameter=ifelse(grepl("skip.",parameter,perl=T,ignore.case = T)==T,"breed.propensity",parameter))%>%
-  mutate(parameter=ifelse(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)==T,"pop.size",parameter)) %>%
-  arrange(Year,parameter)
-
-dim(demcorr)
-head(demcorr)
-unique(demcorr$parameter)
-unique(demcorr$Year)
 
 
 ## CALCULATE QUANTILES AND LAMBDA as pop.size/lag(pop.size)
@@ -306,11 +323,11 @@ for (i in 1:(n.years-1)){
 
 par(mfrow=c(3,2))
 
-plot(l.fitted~ad.fitted, xlim=c(0.78,1), ylim=c(0.5,1.5), xlab="Adult survival probability",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+plot(l.fitted~ad.fitted, xlim=c(0.5,1), ylim=c(0.5,1.5), xlab="Adult survival probability",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
 segments(ad.lower,l.fitted,ad.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
 segments(ad.fitted,l.lower,ad.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
 test<-cor.test(l.fitted,ad.fitted,alternative = c("two.sided"),method = "spearman")
-text(0.78,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+text(0.5,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
 
 plot(l.fitted~ju.fitted, xlim=c(0.5,1), ylim=c(0.5,1.5), xlab="Juvenile survival probability",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
 segments(ju.lower,l.fitted,ju.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
@@ -318,24 +335,24 @@ segments(ju.fitted,l.lower,ju.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
 test<-cor.test(l.fitted,ju.fitted,alternative = c("two.sided"),method = "spearman")
 text(0.5,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
 
-plot(l.fitted~pr.fitted, xlim=c(0.2,1.2), ylim=c(0.5,1.5), xlab="Annual productivity",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+plot(l.fitted~pr.fitted, xlim=c(0,1), ylim=c(0.5,1.5), xlab="Annual productivity",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
 segments(pr.lower,l.fitted,pr.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
 segments(pr.fitted,l.lower,pr.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
 test<-cor.test(l.fitted,pr.fitted,alternative = c("two.sided"),method = "spearman")
-text(0.2,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+text(0,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
 
-plot(l.fitted~rec.fitted, xlim=c(0.2,1.2), ylim=c(0.5,1.5), xlab="Immature recruitment",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+plot(l.fitted~rec.fitted, xlim=c(0,1), ylim=c(0.5,1.5), xlab="Immature recruitment",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
 segments(rec.lower,l.fitted,rec.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
 segments(rec.fitted,l.lower,rec.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
 test<-cor.test(l.fitted,rec.fitted,alternative = c("two.sided"),method = "spearman")
-text(0.2,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+text(0,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
 
 
-plot(l.fitted~bp.fitted, xlim=c(0.2,1.2), ylim=c(0.5,1.5), xlab="Breeding propensity",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
+plot(l.fitted~bp.fitted, xlim=c(0,1), ylim=c(0.5,1.5), xlab="Breeding propensity",ylab="Population growth rate",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
 segments(bp.lower,l.fitted,bp.upper,l.fitted ,col="gray", lty=1, lwd=0.5)
 segments(bp.fitted,l.lower,bp.fitted,l.upper ,col="gray", lty=1, lwd=0.5)
 test<-cor.test(l.fitted,bp.fitted,alternative = c("two.sided"),method = "spearman")
-text(0.2,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
+text(0,0.55, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
 
 
 dev.off()

@@ -233,7 +233,7 @@ names(AYNA.pop)
 
 #### BREEDING SUCCESS DATA FOR FECUNDITY ######
 
-AYNA.bs<-fread("AYNA_breed_success_1982_2017.csv")
+AYNA.bs<-fread("AYNA_breed_success_1982_2018.csv")
 AYNA.bs<-subset(AYNA.bs,Year>1999)	## reduce data set to specified time period
 J<-as.integer(AYNA.bs$n_nests*AYNA.bs$BREED_SUCC)
 R<-AYNA.bs$n_nests
@@ -363,8 +363,8 @@ cat("
     
     for (t in 1:T){  
       ann.fec[t] ~ dunif(0,1)           # Priors on fecundity can range from 0-1 chicks per pair (constrained based on our data)
-      imm.rec[t]~dunif(0,1)                ## RECRUITMENT PROBABILITY COULD SET MORE INFORMATIVE PRIOR HERE
-      skip.prob[t]~dunif(0,1)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      imm.rec[t] ~ dunif(0,1)                ## RECRUITMENT PROBABILITY COULD SET MORE INFORMATIVE PRIOR HERE
+      skip.prob[t] ~ dunif(0,1)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
     } #t
     
     
