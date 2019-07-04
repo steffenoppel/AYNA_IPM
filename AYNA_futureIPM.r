@@ -337,7 +337,7 @@ N.init[1,]<-as.matrix(AYNA.pop[1,2:12])
 # SPECIFY MODEL IN JAGS
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-sink("AYNA_IPM_projection_scenario_0.jags")
+sink("AYNA_IPM_mean_projection_no_skip.jags")
 cat("
 
   
@@ -364,7 +364,7 @@ cat("
     for (t in 1:T){  
       ann.fec[t] ~ dunif(0,1)           # Priors on fecundity can range from 0-1 chicks per pair (constrained based on our data)
       imm.rec[t] ~ dunif(0,1)                ## RECRUITMENT PROBABILITY COULD SET MORE INFORMATIVE PRIOR HERE
-      skip.prob[t] ~ dunif(0,1)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      #skip.prob[t] ~ dunif(0,1)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
     } #t
     
     
@@ -467,7 +467,7 @@ cat("
       ann.recruits[tt] ~ dbin(imm.rec[tt],round(N6[tt]+N.notrecruited[tt]))          ### Ntot.breed[tt]-Nold.breed[tt]+1))           ### this total number comprises a bunch of new recruits, which is the number of total breeders that are not old breeders
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
-      N.non.breed[tt] ~ dbin(skip.prob[tt], round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] ~ dbin((1-p[tt]), round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     } # tt
     
@@ -569,8 +569,9 @@ cat("
     
     ## DERIVED MEAN FECUNDITY 
     mean.fec <- mean(ann.fec)
-    sd.fec <- sd(ann.fec)
-    tau.fec <- pow(max(sd.fec,0.01),-2)
+    mean.rec <- mean(imm.rec)
+    #sd.fec <- sd(ann.fec)
+    #tau.fec <- pow(max(sd.fec,0.01),-2)
     
     #-------------------------------------------------  
     # 4. PROJECTION INTO FUTURE
@@ -581,9 +582,9 @@ cat("
     
       ## RANDOMLY DRAW DEMOGRAPHIC RATES FROM PREVIOUS YEARS WHILE AVOIDING THAT INDEX BECOMES 0
     
-      FUT[tt] ~ dunif(1.5,15.5)           ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
-      FUT.int[tt]<-round(FUT[tt])
-      fut.fec[tt] ~ dnorm(mean.fec,tau.fec)   ### CHANGE FROM mean.fec to 0.69 + 0.16 from Caravaggi et al. 2018 for eradication scenario
+      #FUT[tt] ~ dunif(1.5,15.5)           ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
+      #FUT.int[tt]<-round(FUT[tt])
+      #fut.fec[tt] ~ dnorm(mean.fec,tau.fec)   ### CHANGE FROM mean.fec to 0.69 + 0.16 from Caravaggi et al. 2018 for eradication scenario
     
     
     
@@ -593,28 +594,28 @@ cat("
     
       ## THE PRE-BREEDING YEARS ##
     
-      nestlings[tt] <- round(fut.fec[tt]* 0.5 * Ntot.breed[tt])                                             ### number of locally produced FEMALE chicks based on average fecundity - to use just one take ann.fec[FUT.int[tt]] 
-      N1[tt]  ~ dbin(ann.surv[1,FUT.int[tt]-1], max(1,round(nestlings[tt-1])))                                                    ### number of 1-year old survivors 
-      N2[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N1[tt-1]))                                                      ### number of 2-year old survivors
-      N3[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N2[tt-1]))                                                       ### number of 3-year old survivors
-      N4[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N3[tt-1]))                                                       ### number of 4-year old survivors
-      N5[tt] ~ dbin(ann.surv[1,FUT.int[tt]-1], round(N4[tt-1]))                                                       ### number of 5-year old survivors
+      nestlings[tt] <- round(mean.fec* 0.5 * Ntot.breed[tt])                                             ### number of locally produced FEMALE chicks based on average fecundity - to use just one take ann.fec[FUT.int[tt]] 
+      N1[tt]  ~ dbin(beta[1], max(1,round(nestlings[tt-1])))                                                    ### number of 1-year old survivors 
+      N2[tt] ~ dbin(beta[1], round(N1[tt-1]))                                                      ### number of 2-year old survivors
+      N3[tt] ~ dbin(beta[1], round(N2[tt-1]))                                                       ### number of 3-year old survivors
+      N4[tt] ~ dbin(beta[1], round(N3[tt-1]))                                                       ### number of 4-year old survivors
+      N5[tt] ~ dbin(beta[1], round(N4[tt-1]))                                                       ### number of 5-year old survivors
     
     
       ## THE POTENTIAL RECRUITING YEARS ##
     
-      N6[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
-      N.notrecruited[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
+      N6[tt] ~ dbin(beta[2], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
+      N.notrecruited[tt] ~ dbin(beta[2], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
       non.recruits[tt]<-(N6[tt]+N.notrecruited[tt])-ann.recruits[tt]                                ### number of birds that do not recruit is the sum of all available minus the ones that do recruit
-      ann.recruits[tt] ~ dbin(imm.rec[FUT.int[tt]],round(N6[tt]+N.notrecruited[tt]))                       ### new recruits
+      ann.recruits[tt] ~ dbin(mean.rec,round(N6[tt]+N.notrecruited[tt]))                       ### new recruits
     
     
       ## THE BREEDING YEARS ##
     
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                                         ### the annual number of breeding birds is the estimate from the count SSM
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                                            ### number of old breeders is survivors from previous year minus those that skip a year of breeding
-      N.pot.breed[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
-      N.non.breed[tt] ~ dbin(skip.prob[FUT.int[tt]], round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.pot.breed[tt] ~ dbin(beta[2], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
+      N.non.breed[tt] ~ dbin((1-mean.p), round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     
       ## CALCULATE ANNUAL POP GROWTH RATE ##
@@ -662,10 +663,10 @@ jags.data <- list(y = rCH,
                   ### longline effort data
                   longline=longlineICCAT,
                   
-                  ### FUTURE PROJECTION
-                  FUT.YEAR=n.years+10,
-                  FUT.int=c(seq(1,(n.years-1),1),rep(NA,11)),
-                  fut.fec=c(rep(0.5,(n.years)),rep(NA,10))     ## blank vector to hold index for future demographic rates
+                  # ### FUTURE PROJECTION
+                  FUT.YEAR=n.years+10
+                  # FUT.int=c(seq(1,(n.years-1),1),rep(NA,11)),
+                  # fut.fec=c(rep(0.5,(n.years)),rep(NA,10))     ## blank vector to hold index for future demographic rates
                   )
 
 
@@ -684,7 +685,7 @@ inits <- function(){list(beta = runif(2, 0, 1),
  
 
 # Parameters monitored
-parameters <- c("Ntot.breed","ann.fec","skip.prob","imm.rec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","bycatch")  #,"hookpod"
+parameters <- c("Ntot.breed","ann.fec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","mean.rec","mean.p","bycatch")  #,"hookpod"
 
 # MCMC settings
 ni <- 30000
@@ -698,7 +699,7 @@ nc <- 4
 
 
 # RUN THE FOUR SCENARIOS
-AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenario_0.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_no_skip.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioM.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
@@ -706,7 +707,7 @@ AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Go
 
 # COMPARE WITH BYCATCH MITIGATION PROPORTION AS INPUT
 jags.data$longline<-mitigation
-AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenario_0.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_no_skip.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 #########################################################################
