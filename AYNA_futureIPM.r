@@ -337,7 +337,7 @@ N.init[1,]<-as.matrix(AYNA.pop[1,2:12])
 # SPECIFY MODEL IN JAGS
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-sink("AYNA_IPM_mean_projection_no_skip.jags")
+sink("AYNA_IPM_mean_projection_info_prior.jags")
 cat("
 
   
@@ -362,9 +362,9 @@ cat("
     # -------------------------------------------------
     
     for (t in 1:T){  
-      ann.fec[t] ~ dunif(0,1)           # Priors on fecundity can range from 0-1 chicks per pair (constrained based on our data)
-      imm.rec[t] ~ dunif(0,1)                ## RECRUITMENT PROBABILITY COULD SET MORE INFORMATIVE PRIOR HERE
-      #skip.prob[t] ~ dunif(0,1)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      ann.fec[t] ~ dnorm(0.67,50) T(0,1)        ## Informative Priors on fecundity based on Cuthbert et al 2003
+      imm.rec[t] ~ dnorm(0.28,10) T(0,1)        ## Informative Priors on annual recruitment based on Cuthbert et al 2003
+      skip.prob[t] ~ dnorm(0.34,10) T(0,1)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
     } #t
     
     
@@ -467,7 +467,7 @@ cat("
       ann.recruits[tt] ~ dbin(imm.rec[tt],round(N6[tt]+N.notrecruited[tt]))          ### Ntot.breed[tt]-Nold.breed[tt]+1))           ### this total number comprises a bunch of new recruits, which is the number of total breeders that are not old breeders
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
-      N.non.breed[tt] ~ dbin((1-p[tt]), round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] ~ dbin((skip.prob[tt]), round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     } # tt
     
@@ -513,7 +513,7 @@ cat("
     # -------------------------------------------------        
     # 2.3. Likelihood for fecundity: Poisson regression from the number of surveyed broods
     # -------------------------------------------------
-    for (t in 1:(T-1)){
+    for (t in 1:(T)){      ### T-1 or not
       J[t] ~ dpois(rho.fec[t])
       rho.fec[t] <- R[t]*ann.fec[t]
     } #	close loop over every year in which we have fecundity data
@@ -570,6 +570,7 @@ cat("
     ## DERIVED MEAN FECUNDITY 
     mean.fec <- mean(ann.fec)
     mean.rec <- mean(imm.rec)
+    mean.skip <- mean(skip.prob)
     #sd.fec <- sd(ann.fec)
     #tau.fec <- pow(max(sd.fec,0.01),-2)
     
@@ -615,7 +616,7 @@ cat("
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                                         ### the annual number of breeding birds is the estimate from the count SSM
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                                            ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(beta[2], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
-      N.non.breed[tt] ~ dbin((1-mean.p), round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] ~ dbin(mean.skip, round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     
       ## CALCULATE ANNUAL POP GROWTH RATE ##
@@ -685,12 +686,12 @@ inits <- function(){list(beta = runif(2, 0, 1),
  
 
 # Parameters monitored
-parameters <- c("Ntot.breed","ann.fec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","mean.rec","mean.p","bycatch")  #,"hookpod"
+parameters <- c("Ntot.breed","ann.fec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","mean.skip","mean.rec","mean.p","bycatch")  #,"hookpod"
 
 # MCMC settings
-ni <- 30000
-nt <- 4
-nb <- 10000
+ni <- 50000
+nt <- 3
+nb <- 20000
 nc <- 4
 
 
@@ -699,7 +700,7 @@ nc <- 4
 
 
 # RUN THE FOUR SCENARIOS
-AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_no_skip.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioM.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
@@ -707,7 +708,7 @@ AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Go
 
 # COMPARE WITH BYCATCH MITIGATION PROPORTION AS INPUT
 jags.data$longline<-mitigation
-AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_no_skip.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 #########################################################################

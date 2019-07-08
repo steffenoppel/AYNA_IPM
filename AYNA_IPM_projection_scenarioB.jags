@@ -22,9 +22,9 @@
     # -------------------------------------------------
     
     for (t in 1:T){  
-      ann.fec[t] ~ dunif(0.2,0.8)           # Priors on fecundity can range from 0-1 chicks per pair (constrained based on our data)
-      imm.rec[t]~dunif(0.15,0.75)                ## RECRUITMENT PROBABILITY COULD SET MORE INFORMATIVE PRIOR HERE
-      skip.prob[t]~dunif(0.15,0.45)              ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      ann.fec[t] ~ dnorm(0.67,0.11) T(0,1)        ## Informative Priors on fecundity based on Cuthbert et al 2003
+      imm.rec[t] ~ dnorm(0.28,0.10) T(0,1)       ## Informative Priors on annual recruitment based on Cuthbert et al 2003
+      skip.prob[t] ~ dnorm(0.34,0.10) T(0,1)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
     } #t
     
     

@@ -22,9 +22,9 @@
     # -------------------------------------------------
     
     for (t in 1:T){  
-      ann.fec[t] ~ dnorm(0.67,0.11) T(0,1)        ## Informative Priors on fecundity based on Cuthbert et al 2003
-      imm.rec[t] ~ dnorm(0.28,0.10) T(0,1)       ## Informative Priors on annual recruitment based on Cuthbert et al 2003
-      skip.prob[t] ~ dnorm(0.34,0.10) T(0,1)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      ann.fec[t] ~ dnorm(0.67,50) T(0,1)        ## Informative Priors on fecundity based on Cuthbert et al 2003
+      imm.rec[t] ~ dnorm(0.28,10) T(0,1)        ## Informative Priors on annual recruitment based on Cuthbert et al 2003
+      skip.prob[t] ~ dnorm(0.34,10) T(0,1)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
     } #t
     
     
@@ -127,7 +127,7 @@
       ann.recruits[tt] ~ dbin(imm.rec[tt],round(N6[tt]+N.notrecruited[tt]))          ### Ntot.breed[tt]-Nold.breed[tt]+1))           ### this total number comprises a bunch of new recruits, which is the number of total breeders that are not old breeders
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
-      N.non.breed[tt] ~ dbin(skip.prob[tt], round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] ~ dbin((skip.prob[tt]), round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     } # tt
     
@@ -173,7 +173,7 @@
     # -------------------------------------------------        
     # 2.3. Likelihood for fecundity: Poisson regression from the number of surveyed broods
     # -------------------------------------------------
-    for (t in 1:(T-1)){
+    for (t in 1:(T)){      ### T-1 or not
       J[t] ~ dpois(rho.fec[t])
       rho.fec[t] <- R[t]*ann.fec[t]
     } #	close loop over every year in which we have fecundity data
@@ -245,7 +245,8 @@
     
       #FUT[tt] ~ dunif(1.5,15.5)           ### CHANGE FROM 1.5 to 15.5 to only sample from last three years when survival was high
       #FUT.int[tt]<-round(FUT[tt])
-      fut.fec[tt] ~ dnorm(0.69,2)   ### CHANGE FROM mean.fec to 0.69 + 0.16 from Caravaggi et al. 2018 for eradication scenario
+      #fut.fec[tt] ~ dnorm(mean.fec,tau.fec)   ### CHANGE FROM mean.fec to 0.69 + 0.16 from Caravaggi et al. 2018 for eradication scenario
+    
     
     
       # -------------------------------------------------        
@@ -254,7 +255,7 @@
     
       ## THE PRE-BREEDING YEARS ##
     
-      nestlings[tt] <- round(fut.fec[tt]* 0.5 * Ntot.breed[tt])                      ### number of locally produced FEMALE chicks based on average fecundity - to use just one take ann.fec[FUT.int[tt]] 
+      nestlings[tt] <- round(mean.fec* 0.5 * Ntot.breed[tt])                                             ### number of locally produced FEMALE chicks based on average fecundity - to use just one take ann.fec[FUT.int[tt]] 
       N1[tt]  ~ dbin(beta[1], max(1,round(nestlings[tt-1])))                                                    ### number of 1-year old survivors 
       N2[tt] ~ dbin(beta[1], round(N1[tt-1]))                                                      ### number of 2-year old survivors
       N3[tt] ~ dbin(beta[1], round(N2[tt-1]))                                                       ### number of 3-year old survivors
