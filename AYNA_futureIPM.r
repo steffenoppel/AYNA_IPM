@@ -39,6 +39,8 @@
 ## AYNA distribution provided by Ana Carneiro
 ## outsourced fishery data preparation to separate script on 11 July 2019
 
+## MAJOR UPDATE TO JAGS MODELS ON 11 JULY 2019 - updated priors to weakly informative based on Lemoine 2019
+
 library(tidyverse)
 library(jagsUI)
 library(data.table)
@@ -200,7 +202,7 @@ N.init[1,]<-as.matrix(AYNA.pop[1,2:12])
 # SPECIFY MODEL IN JAGS
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-sink("AYNA_IPM_mean_projection_info_prior.jags")
+sink("AYNA_IPM_mean_projection_info_prior_v2.jags")
 cat("
 
   
@@ -240,11 +242,11 @@ cat("
     
     for (s in 1:n.sites){			### start loop over every study area
       N.est[1,s] ~ dunif(0,200)   ## draw random value from a uniform distribution between 0 and 200 for initial population size
-      mean.lambda[s] ~ dunif(0,10)	#Prior for mean growth rate
+      mean.lambda[s] ~ dnorm(1,10)	#Prior for mean growth rate
       sigma.proc[s] ~ dunif(0,10)	#Prior for SD of state process (annual variation in pop size)
       sigma2.proc[s]<-pow(sigma.proc[s],2)
       tau.proc[s]<-pow(sigma.proc[s],-2)
-      sigma.obs[s] ~ dunif(0,100)	#Prior for SD of observation process (variation in detectability)
+      sigma.obs[s] ~ dunif(0,10)	#Prior for SD of observation process (variation in detectability)
       sigma2.obs[s]<-pow(sigma.obs[s],2)
       tau.obs[s]<-pow(sigma.obs[s],-2)
     }
@@ -255,7 +257,7 @@ cat("
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p ~ dunif(0, 1)                          # Prior for mean recapture
+    mean.p ~ dnorm(0.5,2) T(0,1)     ###dunif(0, 1)                          # Prior for mean recapture
     logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
     
     for (t in 1:T){
@@ -271,11 +273,13 @@ cat("
     } #i
     
     
-    ## AGE-SPECIFIC SURVIVAL 
-    for (age in 1:2){
-      beta[age] ~ dunif(0, 1)                         # Priors for age-specific survival
-      mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
-    }
+    ## AGE-SPECIFIC SURVIVAL - INFORMED PRIOR FOR JUV AND ADULT
+    #for (age in 1:2){
+      beta[1] ~ dunif(0.7, 1)                         # Priors for age-specific survival
+      mu[1] <- log(beta[1] / (1-beta[1]))       # Logit transformation
+      beta[2] ~ dunif(0.85, 1)                         # Priors for age-specific survival
+      mu[2] <- log(beta[2] / (1-beta[2]))       # Logit transformation
+    #}
     
     ## RANDOM TIME EFFECT ON SURVIVAL 
     for (t in 1:(T-1)){
@@ -552,26 +556,24 @@ inits <- function(){list(beta = runif(2, 0, 1),
 parameters <- c("Ntot.breed","ann.fec","ann.surv","beta","pop.growth.rate","future.growth.rate","mean.fec","mean.skip","mean.rec","mean.p","bycatch")  #,"hookpod"
 
 # MCMC settings
-ni <- 5000
+ni <- 50000
 nt <- 3
-nb <- 2000
+nb <- 20000
 nc <- 4
 
 
 
-
-
-
 # RUN THE FOUR SCENARIOS
-AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior_v2.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioM.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 #AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 # COMPARE WITH BYCATCH MITIGATION PROPORTION AS INPUT
-jags.data$longline<-mitigation
-AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+## scale mitigated effort for input
+jags.data$longline<-(longline$MitEFF-mean(longline$MitEFF))/sd(longline$MitEFF)
+AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior_v2.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 #########################################################################
