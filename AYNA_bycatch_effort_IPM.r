@@ -99,7 +99,12 @@ longline<-ICCAT %>% mutate(Eff=ifelse(Time==1,nhooks*AYNA1,
                             ifelse(Time==2,nhooks*AYNA2,
                                    ifelse(Time==3,nhooks*AYNA3,nhooks*AYNA4)))) %>%
   group_by(YearC) %>%
-  summarise(EFF=sum(Eff, na.rm=T))
+  summarise(EFF=sum(Eff, na.rm=T)) %>%
+  mutate(mitigation=c(rep(1,13),0.8,0.6,0.4,0.2,0.1)) %>%   ### insert proportion of ships not using any mitigation measures
+  mutate(MitEFF=EFF*mitigation)
+
+fwrite(longline,"ICCAT_AYNA_overlay_nhooks_2000_2017.csv")
+
 
 #### FIXED WITH QuadID==2
 ### format coordinates - these are unbelievably not specified as N or S but 'QuadID' indicates hemisphere
