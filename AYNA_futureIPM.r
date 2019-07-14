@@ -40,6 +40,8 @@
 ## outsourced fishery data preparation to separate script on 11 July 2019
 
 ## MAJOR UPDATE TO JAGS MODELS ON 11 JULY 2019 - updated priors to weakly informative based on Lemoine 2019
+## however, too informative priors lead to 'invalid parent' error, hence they had to be curtaile
+## FAILED - models do not converge, revert back to jags model using non-informative priors
 
 library(tidyverse)
 library(jagsUI)
@@ -257,7 +259,7 @@ cat("
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p ~ dnorm(0.5,2) T(0,1)     ###dunif(0, 1)                          # Prior for mean recapture
+    mean.p ~ dunif(0, 1)                          # Prior for mean recapture
     logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
     
     for (t in 1:T){
@@ -274,12 +276,10 @@ cat("
     
     
     ## AGE-SPECIFIC SURVIVAL - INFORMED PRIOR FOR JUV AND ADULT
-    #for (age in 1:2){
-      beta[1] ~ dunif(0.7, 1)                         # Priors for age-specific survival
-      mu[1] <- log(beta[1] / (1-beta[1]))       # Logit transformation
-      beta[2] ~ dunif(0.85, 1)                         # Priors for age-specific survival
-      mu[2] <- log(beta[2] / (1-beta[2]))       # Logit transformation
-    #}
+    for (age in 1:2){
+      beta[age] ~ dunif(0.7, 1)                         # Priors for age-specific survival
+      mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
+    }
     
     ## RANDOM TIME EFFECT ON SURVIVAL 
     for (t in 1:(T-1)){
@@ -287,16 +287,16 @@ cat("
     }
     
     ### PRIORS FOR RANDOM EFFECTS
-    sigma.surv ~ dunif(0, 10)                     # Prior for standard deviation of survival
+    sigma.surv ~ dunif(0, 3)                     # Prior for standard deviation of survival
     tau.surv <- pow(sigma.surv, -2)
     
-    sigma.capt ~ dunif(0, 10)                     # Prior for standard deviation of capture
+    sigma.capt ~ dunif(0, 3)                     # Prior for standard deviation of capture
     tau.capt <- pow(sigma.capt, -2)
     
     
     ### PRIOR FOR BYCATCH EFFECTS
     bycatch ~ dnorm(0,tau.byc)
-    sigma.byc ~ dunif(0, 10)                     # Prior for standard deviation of capture    
+    sigma.byc ~ dunif(0, 3)                     # Prior for standard deviation of capture    
     tau.byc <- pow(sigma.byc, -2)
     
     
@@ -564,23 +564,23 @@ nc <- 4
 
 
 # RUN THE FOUR SCENARIOS
-AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior_v2.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
-#AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioM.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
-#AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
-#AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioM.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 # COMPARE WITH BYCATCH MITIGATION PROPORTION AS INPUT
 ## scale mitigated effort for input
-jags.data$longline<-(longline$MitEFF-mean(longline$MitEFF))/sd(longline$MitEFF)
-AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior_v2.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+#jags.data$longline<-(longline$MitEFF-mean(longline$MitEFF))/sd(longline$MitEFF)
+#AYNAscenario0byc <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_mean_projection_info_prior.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 
 
 #########################################################################
 # SAVE OUTPUT - RESULT PROCESSING in AYNA_IPM_result_summaries.r
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-save.image("AYNA_IPM_output_4scenarios.RData")
+save.image("AYNA_IPM_output_info_prior.RData")
 
 
 

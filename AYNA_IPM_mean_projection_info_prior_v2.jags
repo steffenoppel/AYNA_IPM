@@ -52,7 +52,7 @@
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p ~ dnorm(0.5,2) T(0,1)     ###dunif(0, 1)                          # Prior for mean recapture
+    mean.p ~ dunif(0, 1)                          # Prior for mean recapture
     logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
     
     for (t in 1:T){
@@ -69,12 +69,10 @@
     
     
     ## AGE-SPECIFIC SURVIVAL - INFORMED PRIOR FOR JUV AND ADULT
-    #for (age in 1:2){
-      beta[1] ~ dunif(0.7, 1)                         # Priors for age-specific survival
-      mu[1] <- log(beta[1] / (1-beta[1]))       # Logit transformation
-      beta[2] ~ dunif(0.85, 1)                         # Priors for age-specific survival
-      mu[2] <- log(beta[2] / (1-beta[2]))       # Logit transformation
-    #}
+    for (age in 1:2){
+      beta[age] ~ dunif(0.7, 1)                         # Priors for age-specific survival
+      mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
+    }
     
     ## RANDOM TIME EFFECT ON SURVIVAL 
     for (t in 1:(T-1)){
@@ -82,16 +80,16 @@
     }
     
     ### PRIORS FOR RANDOM EFFECTS
-    sigma.surv ~ dunif(0, 10)                     # Prior for standard deviation of survival
+    sigma.surv ~ dunif(0, 3)                     # Prior for standard deviation of survival
     tau.surv <- pow(sigma.surv, -2)
     
-    sigma.capt ~ dunif(0, 10)                     # Prior for standard deviation of capture
+    sigma.capt ~ dunif(0, 3)                     # Prior for standard deviation of capture
     tau.capt <- pow(sigma.capt, -2)
     
     
     ### PRIOR FOR BYCATCH EFFECTS
     bycatch ~ dnorm(0,tau.byc)
-    sigma.byc ~ dunif(0, 10)                     # Prior for standard deviation of capture    
+    sigma.byc ~ dunif(0, 3)                     # Prior for standard deviation of capture    
     tau.byc <- pow(sigma.byc, -2)
     
     

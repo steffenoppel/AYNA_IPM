@@ -231,6 +231,8 @@
     mean.fec <- mean(ann.fec)
     sd.fec <- sd(ann.fec)
     tau.fec <- pow(max(sd.fec,0.01),-2)
+    mean.rec <- mean(imm.rec)
+    mean.skip <- mean(skip.prob)
     
     #-------------------------------------------------  
     # 4. PROJECTION INTO FUTURE
@@ -266,7 +268,7 @@
       N6[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
       N.notrecruited[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
       non.recruits[tt]<-(N6[tt]+N.notrecruited[tt])-ann.recruits[tt]                                ### number of birds that do not recruit is the sum of all available minus the ones that do recruit
-      ann.recruits[tt] ~ dbin(imm.rec[FUT.int[tt]],round(N6[tt]+N.notrecruited[tt]))                       ### new recruits
+      ann.recruits[tt] ~ dbin(mean.rec,round(N6[tt]+N.notrecruited[tt]))                       ### new recruits
     
     
       ## THE BREEDING YEARS ##
@@ -274,7 +276,7 @@
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                                         ### the annual number of breeding birds is the estimate from the count SSM
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                                            ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,FUT.int[tt]-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
-      N.non.breed[tt] ~ dbin(skip.prob[FUT.int[tt]], round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] ~ dbin(mean.skip, round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     
       ## CALCULATE ANNUAL POP GROWTH RATE ##
