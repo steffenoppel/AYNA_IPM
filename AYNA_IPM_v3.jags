@@ -151,13 +151,13 @@
       ## State process for entire time series
 
       for (t in 1:T){
-        Nobs[t]<-max(1,round(Ntot.breed[t]))
-        N.est[t,1:n.sites] ~ dmulti(prop.site, Nobs[t])                # pop in a given study area should be proportion of total breeding population
+        #Nobs[t]<-max(1,round(Ntot.breed[t]))
+        #N.est[t,1:n.sites] ~ dmulti(prop.site, Nobs[t])                # pop in a given study area should be proportion of total breeding population
     
         ## Observation process
     
         for (s in 1:n.sites){			### start loop over every study area
-  
+          N.est[t,s] ~ dbin(prop.site[s], round(Ntot.breed[t]))                # pop in a given study area should be proportion of total breeding population
           y.count[t,s] ~ dnorm(N.est[t,s], tau.obs[t,s])								# Distribution for random error in observed numbers (counts)
         }	## end site loop											
       }		## end year loop
@@ -219,7 +219,7 @@
     
     ## DERIVED POPULATION GROWTH RATE PER YEAR
     for (t in 1:(T-1)){
-      lambda[t]<-Ntot.breed[t+1]/Ntot.breed[t]
+      lambda[t]<-Ntot.breed[t+1]/max(1,Ntot.breed[t])  ## division by 0 creates invalid parent value
     }		## end year loop
     
     ## DERIVED OVERALL POPULATION GROWTH RATE 
