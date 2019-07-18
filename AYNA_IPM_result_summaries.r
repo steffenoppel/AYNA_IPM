@@ -53,7 +53,7 @@ exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),seq(2000,2018,1),rep(seq(2000.5,2017.5,1),each=2),rep(NA,10))) %>%
   mutate(Scenario="mouse eradication")
 tail(exportM)
 
@@ -63,7 +63,7 @@ exportB<-as.data.frame(AYNAscenarioB$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),seq(2000,2018,1),rep(seq(2000.5,2017.5,1),each=2),rep(NA,10))) %>%
   mutate(Scenario="bycatch mitigation")
 tail(exportB)
 
@@ -73,7 +73,7 @@ exportMB<-as.data.frame(AYNAscenarioMB$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),rep(seq(2000,2018,1),3),rep(seq(2000.5,2017.5,1),each=2),rep(NA,7))) %>%
+  mutate(Year=c(seq(2000,2028,1),seq(2000,2018,1),rep(seq(2000.5,2017.5,1),each=2),rep(NA,10))) %>%
   mutate(Scenario="mouse eradication and bycatch mitigation")
 tail(exportMB)
 
@@ -160,7 +160,7 @@ rbind(export0,exportM[exportM$Year>2017,],exportB[exportB$Year>2017,],exportMB[e
   #geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
   #facet_wrap(~Scenario, ncol=2) +
   ylab("Number of AYNA pairs in Gough study areas") +
-  scale_y_continuous(breaks=seq(200,1500,100), limits=c(200,1500))+
+  scale_y_continuous(breaks=seq(0,1500,100), limits=c(0,1500))+
   scale_x_continuous(breaks=seq(2000,2028,2))+
   theme(panel.background=element_rect(fill="white", colour="black"), 
         axis.text=element_text(size=18, color="black"), 

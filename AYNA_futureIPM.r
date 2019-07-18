@@ -580,7 +580,7 @@ AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\G
 # SAVE OUTPUT - RESULT PROCESSING in AYNA_IPM_result_summaries.r
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-save.image("AYNA_IPM_output_info_prior.RData")
+save.image("AYNA_IPM_output_info_prior_4models.RData")
 
 
 
