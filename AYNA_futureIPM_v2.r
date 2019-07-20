@@ -48,6 +48,8 @@
 ## multinomial likelihood did not work, hence bypassed via observation process (doesn't add up to 1, but at least doesn't yield 'Unable to find appropriate sampler' error)
 ## ALL ATTEMPTS FAILED WITH 'slicer stuck at value with infinite density'
 
+## UPDATE 20 JULY 2019 - made priors uninformative (again) to avoid invalid parent and slicer errors
+
 library(tidyverse)
 library(jagsUI)
 library(data.table)
@@ -246,9 +248,9 @@ cat("
     # -------------------------------------------------
     
     for (t in 1:T){  
-      ann.fec[t] ~ dnorm(0.67,50) T(0.01,0.99)        ## Informative Priors on fecundity based on Cuthbert et al 2003
-      imm.rec[t] ~ dnorm(0.28,10) T(0.01,0.99)       ## Informative Priors on annual recruitment based on Cuthbert et al 2003
-      skip.prob[t] ~ dnorm(0.34,10) T(0.01,0.99)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      ann.fec[t] ~ dunif(0.01,0.99)        ## Informative Priors on fecundity based on Cuthbert et al 2003: dnorm(0.67,50) T(0.01,0.99)
+      imm.rec[t] ~ dunif(0.01,0.99)       ## Informative Priors on annual recruitment based on Cuthbert et al 2003: dnorm(0.28,10) T(0.01,0.99)
+      skip.prob[t] ~ dunif(0.01,0.99)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66: dnorm(0.34,10) T(0.01,0.99)
     } #t
     
     
@@ -262,7 +264,7 @@ cat("
       ## prop.site[s] ~ dnorm(prop[s],100) T(0,1)   ### the proportion of the total population that is in 1 of the 11 census areas
 
         for (t in 1:T){			### start loop over every year
-          sigma.obs[t,s] ~ dunif(1,100) 	#Prior for SD of observation process (variation in detectability)
+          sigma.obs[t,s] ~ dunif(1,1000) 	#Prior for SD of observation process (variation in detectability)
           tau.obs[t,s]<-pow(sigma.obs[t,s],-2)
         } ## close year loop
     }  ## close site loop
@@ -273,7 +275,7 @@ cat("
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p ~ dunif(0.05, 0.85)                          # Prior for mean recapture
+    mean.p ~ dunif(0.01, 0.99)                          # Prior for mean recapture
     logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
     
     for (t in 1:T){
@@ -346,10 +348,10 @@ cat("
     
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                             ### the annual number of breeding birds is the sum of old breeders and recent recruits
       ann.recruits[tt] ~ dbin(imm.rec[tt],max(5,round(N6[tt]+N.notrecruited[tt])))          ### annual recruits are those age 6 or older that haven't recruited yet
-      Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
+      Nold.breed[tt]<- round(N.pot.breed[tt]-N.non.breed[tt])                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders that return from sabbatical
       #N.non.breed[tt] ~ dbin((skip.prob[tt]), max(1,round(N.pot.breed[tt])))               ### number of old nonbreeders (birds that have bred before and skip breeding) 
-      N.non.breed[tt] <- round(skip.prob[tt] * N.pot.breed[tt])               ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] ~ dbin(skip.prob[tt],N.pot.breed[tt])               ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     } # tt
     
@@ -418,7 +420,7 @@ cat("
     
           # Observation process
           y[i,t] ~ dbern(mu2[i,t])
-          mu2[i,t] <- p[t] * z[i,t]
+          mu2[i,t] <- p[t] * z[i,t] * (1-skip.prob[t])  ### added skip.prob[t] because skippers cannot be observed
         } #t
     } #i
     
@@ -557,23 +559,23 @@ jags.data <- list(y = rCH,
 # Initial values 
 inits <- function(){list(beta = runif(2, 0.01, 0.99),
                          z = zinit,
-                         mean.p = runif(1, 0.05, 0.85),
+                         mean.p = runif(1, 0.01, 0.99),
                          bycatch = rnorm(1,0,0.01),
                          #hookpod = rnorm(1,0,0.01),
                          
                          ### count data
                          #N.est=N.init
                          #sigma.obs=runif(n.sites,0,10),
-                         sigma.obs=matrix(runif(n.sites*n.years,0,100),nrow=n.years,ncol=n.sites))}
+                         sigma.obs=matrix(runif(n.sites*n.years,0,1000),nrow=n.years,ncol=n.sites))}
  
 
 # Parameters monitored
 parameters <- c("Ntot.breed","ann.fec","ann.surv","lambda","fut.lambda","beta","mean.fec","mean.skip","mean.rec","mean.p","bycatch")  #,"hookpod"
 
 # MCMC settings
-ni <- 50000
+ni <- 500
 nt <- 3
-nb <- 20000
+nb <- 200
 nc <- 4
 
 
