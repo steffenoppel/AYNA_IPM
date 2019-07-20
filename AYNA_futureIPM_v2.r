@@ -46,6 +46,7 @@
 ## MAJOR UPDATE 18 July 2019 - linked population process with count data in a meaningful way
 ## advice from Adam Butler to link Ntot.breed to observed counts in SSM
 ## multinomial likelihood did not work, hence bypassed via observation process (doesn't add up to 1, but at least doesn't yield 'Unable to find appropriate sampler' error)
+## ALL ATTEMPTS FAILED WITH 'slicer stuck at value with infinite density'
 
 library(tidyverse)
 library(jagsUI)
@@ -245,9 +246,9 @@ cat("
     # -------------------------------------------------
     
     for (t in 1:T){  
-      ann.fec[t] ~ dnorm(0.67,50) T(0,1)        ## Informative Priors on fecundity based on Cuthbert et al 2003
-      imm.rec[t] ~ dnorm(0.28,10) T(0,1)        ## Informative Priors on annual recruitment based on Cuthbert et al 2003
-      skip.prob[t] ~ dnorm(0.34,10) T(0,1)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
+      ann.fec[t] ~ dnorm(0.67,50) T(0.01,0.99)        ## Informative Priors on fecundity based on Cuthbert et al 2003
+      imm.rec[t] ~ dnorm(0.28,10) T(0.01,0.99)       ## Informative Priors on annual recruitment based on Cuthbert et al 2003
+      skip.prob[t] ~ dnorm(0.34,10) T(0.01,0.99)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66
     } #t
     
     
@@ -258,10 +259,10 @@ cat("
     # -------------------------------------------------
     
     for (s in 1:n.sites){			### start loop over every study area
-      prop.site[s] ~ dnorm(prop[s],100) T(0,1)   ### the proportion of the total population that is in 1 of the 11 census areas
+      ## prop.site[s] ~ dnorm(prop[s],100) T(0,1)   ### the proportion of the total population that is in 1 of the 11 census areas
 
         for (t in 1:T){			### start loop over every year
-          sigma.obs[t,s] ~ dunif(0,100)	#Prior for SD of observation process (variation in detectability)
+          sigma.obs[t,s] ~ dunif(1,100) 	#Prior for SD of observation process (variation in detectability)
           tau.obs[t,s]<-pow(sigma.obs[t,s],-2)
         } ## close year loop
     }  ## close site loop
@@ -272,7 +273,7 @@ cat("
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p ~ dunif(0, 1)                          # Prior for mean recapture
+    mean.p ~ dunif(0.05, 0.85)                          # Prior for mean recapture
     logit.p <- log(mean.p / (1-mean.p))           # Logit transformation
     
     for (t in 1:T){
@@ -290,7 +291,7 @@ cat("
     
     ## AGE-SPECIFIC SURVIVAL 
     for (age in 1:2){
-      beta[age] ~ dunif(0, 1)                         # Priors for age-specific survival
+      beta[age] ~ dunif(0.01, 0.99)            # Priors for age-specific survival
       mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
     }
     
@@ -300,16 +301,16 @@ cat("
     }
     
     ### PRIORS FOR RANDOM EFFECTS
-    sigma.surv ~ dunif(0, 10)                     # Prior for standard deviation of survival
+    sigma.surv ~ dunif(1, 10)                     # Prior for standard deviation of survival
     tau.surv <- pow(sigma.surv, -2)
     
-    sigma.capt ~ dunif(0, 10)                     # Prior for standard deviation of capture
+    sigma.capt ~ dunif(1, 10)                     # Prior for standard deviation of capture
     tau.capt <- pow(sigma.capt, -2)
     
     
     ### PRIOR FOR BYCATCH EFFECTS
     bycatch ~ dnorm(0,tau.byc)
-    sigma.byc ~ dunif(0, 10)                     # Prior for standard deviation of capture    
+    sigma.byc ~ dunif(1, 10)                     # Prior for standard deviation of capture    
     tau.byc <- pow(sigma.byc, -2)
     
     
@@ -325,18 +326,18 @@ cat("
     
       ## THE PRE-BREEDING YEARS ##
     
-      nestlings[tt] <- ann.fec[tt] * 0.5 * Ntot.breed[tt]                                                     ### number of locally produced FEMALE chicks
+      nestlings[tt] <- round(ann.fec[tt] * 0.5 * Ntot.breed[tt])                                                    ### number of locally produced FEMALE chicks
       JUV[tt] ~ dpois(nestlings[tt])                                                                     ### need a discrete number otherwise dbin will fail, dpois must be >0
-      N1[tt]  ~ dbin(ann.surv[1,tt-1], round(JUV[tt-1]))                                                    ### number of 1-year old survivors 
-      N2[tt] ~ dbin(ann.surv[1,tt-1], round(N1[tt-1]))                                                      ### number of 2-year old survivors
-      N3[tt] ~ dbin(ann.surv[1,tt-1], round(N2[tt-1]))                                                       ### number of 3-year old survivors
-      N4[tt] ~ dbin(ann.surv[1,tt-1], round(N3[tt-1]))                                                       ### number of 4-year old survivors
-      N5[tt] ~ dbin(ann.surv[1,tt-1], round(N4[tt-1]))                                                       ### number of 5-year old survivors
+      N1[tt]  ~ dbin(ann.surv[1,tt-1], max(5,round(JUV[tt-1])))                                                    ### number of 1-year old survivors 
+      N2[tt] ~ dbin(ann.surv[1,tt-1], max(5,round(N1[tt-1])))                                                      ### number of 2-year old survivors
+      N3[tt] ~ dbin(ann.surv[1,tt-1], max(5,round(N2[tt-1])))                                                       ### number of 3-year old survivors
+      N4[tt] ~ dbin(ann.surv[1,tt-1], max(5,round(N3[tt-1])))                                                       ### number of 4-year old survivors
+      N5[tt] ~ dbin(ann.surv[1,tt-1], max(5,round(N4[tt-1])))                                                       ### number of 5-year old survivors
     
     
       ## THE POTENTIAL RECRUITING YEARS ##
     
-      N6[tt] ~ dbin(ann.surv[2,tt-1], round(N5[tt-1]))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
+      N6[tt] ~ dbin(ann.surv[2,tt-1], max(5,round(N5[tt-1])))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
       N.notrecruited[tt] ~ dbin(ann.surv[2,tt-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
       non.recruits[tt]<-(N6[tt]+N.notrecruited[tt])-ann.recruits[tt]                      ## number of birds that do not recruit is the sum of all available minus the ones that do recruit
     
@@ -344,10 +345,11 @@ cat("
       ## THE BREEDING YEARS ##
     
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                             ### the annual number of breeding birds is the sum of old breeders and recent recruits
-      ann.recruits[tt] ~ dbin(imm.rec[tt],round(N6[tt]+N.notrecruited[tt]))          ### annual recruits are those age 6 or older that haven't recruited yet
+      ann.recruits[tt] ~ dbin(imm.rec[tt],max(5,round(N6[tt]+N.notrecruited[tt])))          ### annual recruits are those age 6 or older that haven't recruited yet
       Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders that return from sabbatical
-      N.non.breed[tt] ~ dbin((skip.prob[tt]), round(N.pot.breed[tt]))               ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      #N.non.breed[tt] ~ dbin((skip.prob[tt]), max(1,round(N.pot.breed[tt])))               ### number of old nonbreeders (birds that have bred before and skip breeding) 
+      N.non.breed[tt] <- round(skip.prob[tt] * N.pot.breed[tt])               ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
     } # tt
     
@@ -362,7 +364,7 @@ cat("
     N4[1]<-round(Ntot.breed[1]*0.08725001)
     N5[1]<-round(Ntot.breed[1]*0.07462511)
     non.recruits[1]<-round(Ntot.breed[1]*0.3147774)
-    Ntot.breed[1] ~ dpois(675) ## sum of pairs observed in year 1 is 675
+    Ntot.breed[1] <- 675 ## sum of pairs observed in year 1 is 675
     N.non.breed[1]<- round(Ntot.breed[1]*0.12632740)
     
     
@@ -380,8 +382,8 @@ cat("
         ## Observation process
     
         for (s in 1:n.sites){			### start loop over every study area
-          N.est[t,s] ~ dbin(prop.site[s], round(Ntot.breed[t]))                # pop in a given study area should be proportion of total breeding population
-          y.count[t,s] ~ dnorm(N.est[t,s], tau.obs[t,s])								# Distribution for random error in observed numbers (counts)
+          N.est[t,s] <- round(prop[s] * Ntot.breed[t])              # pop in a given study area should be proportion of total breeding population
+          y.count[t,s] ~ dnorm(max(1,N.est[t,s]), tau.obs[t,s])								# Distribution for random error in observed numbers (counts)
         }	## end site loop											
       }		## end year loop
     
@@ -553,9 +555,9 @@ jags.data <- list(y = rCH,
 
 
 # Initial values 
-inits <- function(){list(beta = runif(2, 0, 1),
+inits <- function(){list(beta = runif(2, 0.01, 0.99),
                          z = zinit,
-                         mean.p = runif(1, 0, 1),
+                         mean.p = runif(1, 0.05, 0.85),
                          bycatch = rnorm(1,0,0.01),
                          #hookpod = rnorm(1,0,0.01),
                          
