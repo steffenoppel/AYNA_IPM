@@ -60,14 +60,14 @@
     ### SURVIVAL PROBABILITY
     for (i in 1:nind){
       for (t in f[i]:(T-1)){
-        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t] + bycatch*longline[t]
+        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t] ##+ bycatch*longline[t]
       } #t
     } #i
     
     
     ## AGE-SPECIFIC SURVIVAL 
     for (age in 1:2){
-      beta[age] ~ dunif(0.01, 0.99)            # Priors for age-specific survival
+      beta[age] ~ dunif(0.5, 0.99)            # Priors for age-specific survival
       mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
     }
     
@@ -85,7 +85,7 @@
     
     
     ### PRIOR FOR BYCATCH EFFECTS
-    bycatch ~ dnorm(0,tau.byc)
+    #bycatch ~ dnorm(0,tau.byc)
     sigma.byc ~ dunif(1, 10)                     # Prior for standard deviation of capture    
     tau.byc <- pow(sigma.byc, -2)
     

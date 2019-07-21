@@ -286,14 +286,14 @@ cat("
     ### SURVIVAL PROBABILITY
     for (i in 1:nind){
       for (t in f[i]:(T-1)){
-        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t] + bycatch*longline[t]
+        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t] ##+ bycatch*longline[t]
       } #t
     } #i
     
     
     ## AGE-SPECIFIC SURVIVAL 
     for (age in 1:2){
-      beta[age] ~ dunif(0.01, 0.99)            # Priors for age-specific survival
+      beta[age] ~ dunif(0.5, 0.99)            # Priors for age-specific survival
       mu[age] <- log(beta[age] / (1-beta[age]))       # Logit transformation
     }
     
@@ -311,7 +311,7 @@ cat("
     
     
     ### PRIOR FOR BYCATCH EFFECTS
-    bycatch ~ dnorm(0,tau.byc)
+    #bycatch ~ dnorm(0,tau.byc)
     sigma.byc ~ dunif(1, 10)                     # Prior for standard deviation of capture    
     tau.byc <- pow(sigma.byc, -2)
     
@@ -547,7 +547,7 @@ jags.data <- list(y = rCH,
                   R=R,
                   
                   ### longline effort data
-                  longline=longlineICCAT,
+                  #longline=longlineICCAT,
                   
                   # ### FUTURE PROJECTION
                   FUT.YEAR=n.years+10
@@ -557,25 +557,25 @@ jags.data <- list(y = rCH,
 
 
 # Initial values 
-inits <- function(){list(beta = runif(2, 0.01, 0.99),
+inits <- function(){list(beta = runif(2, 0.5, 0.99),
                          z = zinit,
                          mean.p = runif(1, 0.01, 0.99),
-                         bycatch = rnorm(1,0,0.01),
+                         #bycatch = rnorm(1,0,0.01),
                          #hookpod = rnorm(1,0,0.01),
                          
                          ### count data
                          #N.est=N.init
                          #sigma.obs=runif(n.sites,0,10),
-                         sigma.obs=matrix(runif(n.sites*n.years,0,1000),nrow=n.years,ncol=n.sites))}
+                         sigma.obs=matrix(runif(n.sites*n.years,1,1000),nrow=n.years,ncol=n.sites))}
  
 
 # Parameters monitored
 parameters <- c("Ntot.breed","ann.fec","ann.surv","lambda","fut.lambda","beta","mean.fec","mean.skip","mean.rec","mean.p","bycatch")  #,"hookpod"
 
 # MCMC settings
-ni <- 500
+ni <- 50000
 nt <- 3
-nb <- 200
+nb <- 20000
 nc <- 4
 
 
@@ -597,7 +597,7 @@ AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Go
 # SAVE OUTPUT - RESULT PROCESSING in AYNA_IPM_result_summaries.r
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-save.image("AYNA_IPM_output_info_prior_4models.RData")
+save.image("AYNA_IPM_v3_output.RData")
 
 
 
