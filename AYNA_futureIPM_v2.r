@@ -49,8 +49,10 @@
 ## ALL ATTEMPTS FAILED WITH 'slicer stuck at value with infinite density'
 
 ## UPDATE 20 JULY 2019 - made priors uninformative (again) to avoid invalid parent and slicer errors
+## MODEL COMPLETED ON 21 JULY 2019, but pop trajectory no longer matches counts
+## UPDATE 22 JULY 2019 - allowed survival annual variation to vary by age
 
-## MODEL COMPLETED ON 21 JULY 2019 
+## NOT RUN TO CONVERGENCE YET
 
 library(tidyverse)
 library(jagsUI)
@@ -288,7 +290,7 @@ cat("
     ### SURVIVAL PROBABILITY
     for (i in 1:nind){
       for (t in f[i]:(T-1)){
-        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[t] ##+ bycatch*longline[t]
+        logit(phi[i,t]) <- mu[AGEMAT[i,t]] + surv.raneff[AGEMAT[i,t],t] ##+ bycatch*longline[t]
       } #t
     } #i
     
@@ -344,15 +346,16 @@ cat("
       ## THE POTENTIAL RECRUITING YEARS ##
     
       N6[tt] ~ dbin(ann.surv[2,tt-1], max(5,round(N5[tt-1])))                                     ### number of 6-year old survivors that are ready for recruitment - using adult survival
-      N.notrecruited[tt] ~ dbin(ann.surv[2,tt-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
+      ann.recruits[tt] ~ dbin(imm.rec[tt],max(5,round(N6[tt]+N.notrecruited[tt])))          ### annual recruits are those age 6 or older that haven't recruited yet
       non.recruits[tt]<-(N6[tt]+N.notrecruited[tt])-ann.recruits[tt]                      ## number of birds that do not recruit is the sum of all available minus the ones that do recruit
+      N.notrecruited[tt] ~ dbin(ann.surv[2,tt-1], round(max(10,non.recruits[tt-1])))       ### number of not-yet-recruited birds surviving from previous year
+
     
     
       ## THE BREEDING YEARS ##
     
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                             ### the annual number of breeding birds is the sum of old breeders and recent recruits
-      ann.recruits[tt] ~ dbin(imm.rec[tt],max(5,round(N6[tt]+N.notrecruited[tt])))          ### annual recruits are those age 6 or older that haven't recruited yet
-      Nold.breed[tt]<- round(N.pot.breed[tt]-N.non.breed[tt])                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
+      Nold.breed[tt] <- round(N.pot.breed[tt]-N.non.breed[tt])                              ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(ann.surv[2,tt-1], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders that return from sabbatical
       #N.non.breed[tt] ~ dbin((skip.prob[tt]), max(1,round(N.pot.breed[tt])))               ### number of old nonbreeders (birds that have bred before and skip breeding) 
       N.non.breed[tt] ~ dbin(skip.prob[tt],N.pot.breed[tt])               ### number of old nonbreeders (birds that have bred before and skip breeding) 
@@ -502,7 +505,7 @@ cat("
       ## THE BREEDING YEARS ##
     
       Ntot.breed[tt] <- Nold.breed[tt] + ann.recruits[tt]                                         ### the annual number of breeding birds is the estimate from the count SSM
-      Nold.breed[tt]<- N.pot.breed[tt]-N.non.breed[tt]                                            ### number of old breeders is survivors from previous year minus those that skip a year of breeding
+      Nold.breed[tt] <- N.pot.breed[tt]-N.non.breed[tt]                                            ### number of old breeders is survivors from previous year minus those that skip a year of breeding
       N.pot.breed[tt] ~ dbin(beta[2], round(sum(Ntot.breed[tt-1],N.non.breed[tt-1])))   ### number of potential old breeders is the number of survivors from previous year breeders and nonbreeders
       N.non.breed[tt] ~ dbin(mean.skip, round(N.pot.breed[tt]))                             ### number of old nonbreeders (birds that have bred before and skip breeding) 
     
@@ -574,18 +577,18 @@ inits <- function(){list(beta = runif(2, 0.5, 0.99),
  
 
 # Parameters monitored
-parameters <- c("Ntot.breed","ann.fec","ann.surv","lambda","fut.lambda","beta","mean.fec","mean.skip","mean.rec","mean.p","bycatch")  #,"hookpod"
+parameters <- c("Ntot.breed","ann.fec","skip.prob","imm.rec","ann.surv","lambda","fut.lambda","beta","mean.fec","mean.skip","mean.rec","mean.p","bycatch")  #,"hookpod"
 
 # MCMC settings
-ni <- 150000
+ni <- 150
 nt <- 5
-nb <- 50000
+nb <- 50
 nc <- 4
 
 
 
-# RUN THE FOUR SCENARIOS
-AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_v3.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
+# RUN THE FOUR SCENARIOS (each takes about 10 hours to run)
+AYNAscenario0 <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_v4.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 # AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioM.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 # AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 # AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
