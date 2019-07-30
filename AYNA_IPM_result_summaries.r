@@ -25,7 +25,7 @@ select<-dplyr::select
 # AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 # AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-load("AYNA_IPM_v3_output.RData")
+load("AYNA_IPM_v5_output.RData")
 
 
 
@@ -43,40 +43,36 @@ export0<-as.data.frame(AYNAscenario0$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=ifelse(grepl("ann.surv\\[1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("ann.surv\\[2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-  mutate(Year=c(seq(2000,2028,1),seq(2000,2018,1),rep(seq(2000.5,2017.5,1),each=2),seq(2000,2025,1),rep(NA,9))) %>%
+  mutate(Year=c(seq(2000,2048,1), ## Ntot.breed
+                seq(2005,2048,1), ## NOBS
+                seq(2000,2018,1), ## ann.fec
+                seq(2000,2018,1), ## skip.prob
+                seq(2000,2018,1), ## imm.rec
+                rep(seq(2000.5,2017.5,1),each=2), ##ann.surv adult and juvenile
+                seq(2000,2047,1), ## lambda and fut.lambda
+                rep(NA,8))) %>%  ## non-time varying parameters
   mutate(Scenario="no management")
 tail(export0)
 hist(export0$Rhat)
 
-# exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
-#   setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
-#   mutate(parameter=row.names(AYNAscenario0$summary)) %>%
-#   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-#   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
-#   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-#   mutate(Year=c(seq(2000,2028,1),seq(2000,2018,1),rep(seq(2000.5,2017.5,1),each=2),rep(NA,10))) %>%
-#   mutate(Scenario="mouse eradication")
-# tail(exportM)
-# 
-# exportB<-as.data.frame(AYNAscenarioB$summary) %>% select(c(1,5,2,3,7,8)) %>%
-#   setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
-#   mutate(parameter=row.names(AYNAscenario0$summary)) %>%
-#   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-#   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
-#   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-#   mutate(Year=c(seq(2000,2028,1),seq(2000,2018,1),rep(seq(2000.5,2017.5,1),each=2),rep(NA,10))) %>%
-#   mutate(Scenario="bycatch mitigation")
-# tail(exportB)
-# 
-# exportMB<-as.data.frame(AYNAscenarioMB$summary) %>% select(c(1,5,2,3,7,8)) %>%
-#   setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
-#   mutate(parameter=row.names(AYNAscenario0$summary)) %>%
-#   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-#   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
-#   mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
-#   mutate(Year=c(seq(2000,2028,1),seq(2000,2018,1),rep(seq(2000.5,2017.5,1),each=2),rep(NA,10))) %>%
-#   mutate(Scenario="mouse eradication and bycatch mitigation")
-# tail(exportMB)
+exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
+  setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
+  mutate(parameter=row.names(AYNAscenario0$summary)) %>%
+  mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
+  mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
+  mutate(Year=c(seq(2000,2048,1), ## Ntot.breed
+                seq(2005,2048,1), ## NOBS
+                seq(2000,2018,1), ## ann.fec
+                seq(2000,2018,1), ## skip.prob
+                seq(2000,2018,1), ## imm.rec
+                rep(seq(2000.5,2017.5,1),each=2), ##ann.surv adult and juvenile
+                seq(2000,2047,1), ## lambda and fut.lambda
+                rep(NA,8))) %>%  ## non-time varying parameters
+  mutate(Scenario="mouse eradication")
+tail(exportM)
+
+
 
 
 
@@ -101,55 +97,14 @@ export0 %>% mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case
 
 
 
-
-
-
-
-# samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>%
-#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-#   gather(key="parameter", value="value") %>%
-#   mutate(Scenario="no management")
-# samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>%
-#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-#   gather(key="parameter", value="value") %>%
-#   mutate(Scenario="mouse eradication")
-# samplesoutMB<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]])) %>%
-#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-#   gather(key="parameter", value="value") %>%
-#   mutate(Scenario="bycatch mitigation")
-# samplesoutB<-as.data.frame(rbind(AYNAscenarioB$samples[[1]],AYNAscenarioB$samples[[2]],AYNAscenarioB$samples[[3]],AYNAscenarioB$samples[[4]])) %>%
-#   select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
-#   gather(key="parameter", value="value") %>%
-#   mutate(Scenario="mouse eradication and bycatch mitigation")
-# 
-# demcorr<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
-#   mutate(Year=sub(".*\\[(.*)\\].*", "\\1", parameter, perl=TRUE)) %>%
-#   mutate(Year=ifelse(grepl(",",Year),as.numeric(strsplit(Year,",", perl=TRUE)[2]),as.numeric(Year))) %>%
-#   mutate(parameter=ifelse(grepl("ann.surv\\[1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
-#   mutate(parameter=ifelse(grepl("ann.surv\\[2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter))%>%
-#   mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case = T)==T,"fecundity",parameter))%>%
-#   mutate(parameter=ifelse(grepl("imm.rec",parameter,perl=T,ignore.case = T)==T,"recruitment",parameter))%>%
-#   mutate(parameter=ifelse(grepl("skip.",parameter,perl=T,ignore.case = T)==T,"breed.propensity",parameter))%>%
-#   mutate(parameter=ifelse(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)==T,"pop.size",parameter)) %>%
-#   arrange(Year,parameter)
-# 
-# dim(demcorr)
-# head(demcorr)
-# unique(demcorr$parameter)
-# unique(demcorr$Year)
-
-
-
-
-
 #########################################################################
 # PRODUCE OUTPUT GRAPH THAT SHOWS ESTIMATES FOR POPULATION TREND
 #########################################################################
-pdf("AYNA_IPM_pop_trend_Gough_2000_2029_v3.pdf", width=14, height=8)
+pdf("AYNA_IPM_pop_trend_Gough_2000_2048_v5.pdf", width=14, height=8)
 
 ## COLLATE DATA FOR ALL 4 SCENARIOS
-#rbind(export0,exportM[exportM$Year>2017,],exportB[exportB$Year>2017,],exportMB[exportMB$Year>2017,]) %>%
-  export0 %>%
+rbind(export0,exportM[exportM$Year>2017,]) %>%
+  #export0 %>%
   filter(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)) %>%
   arrange(Scenario, Year) %>%
 
@@ -157,14 +112,14 @@ pdf("AYNA_IPM_pop_trend_Gough_2000_2029_v3.pdf", width=14, height=8)
 ## CREATE PLOT FOR POP TREND AND SAVE AS PDF
 
   ggplot() + 
-  geom_line(aes(y=Median, x=Year), size=1)+   #, color=Scenario
-  geom_ribbon(aes(x=Year, ymin=lcl,ymax=ucl),alpha=0.5)+ #, fill=Scenario
+  geom_line(aes(y=Median, x=Year, color=Scenario), size=1)+   #
+  geom_ribbon(aes(x=Year, ymin=lcl,ymax=ucl, fill=Scenario),alpha=0.5)+ #
   geom_point(data=AYNA.pop,aes(y=tot, x=Year),col="firebrick", size=2.5)+
   #geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
   #facet_wrap(~Scenario, ncol=2) +
   ylab("AYNA pairs in Gough study areas") +
-  scale_y_continuous(breaks=seq(0,1200,200), limits=c(0,1200))+
-  scale_x_continuous(breaks=seq(2000,2028,2))+
+  scale_y_continuous(breaks=seq(0,3000,500), limits=c(0,3000))+
+  scale_x_continuous(breaks=seq(2000,2040,5),limits=c(2000,2040))+
   theme(panel.background=element_rect(fill="white", colour="black"), 
         axis.text=element_text(size=18, color="black"), 
         axis.title=element_text(size=20),
@@ -192,8 +147,8 @@ export0 %>% filter(grepl("survival",parameter,perl=T,ignore.case = T)) %>%
 
   ggplot(aes(y=Median, x=Year, colour=parameter)) + geom_point(size=2.5)+
   geom_errorbar(aes(ymin=lcl, ymax=ucl), width=.1)+
-  geom_hline(yintercept=0.7809829, colour="#619CFF") +
-  geom_hline(yintercept=0.9176491, colour="#619CFF") +
+  geom_hline(yintercept=export0$Median[export0$parameter=="mean.survival"][1], colour="#619CFF") +
+  geom_hline(yintercept=export0$Median[export0$parameter=="mean.survival"][2], colour="#619CFF") +
   ylab("Apparent annual survival probability") +
   scale_y_continuous(breaks=seq(0,1,0.1), limits=c(0,1))+
   scale_x_continuous(breaks=seq(2000,2020,2))+
@@ -231,43 +186,58 @@ dev.off()
 
 
 
+
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CREATE HISTOGRAM OF FUTURE LAMBDA AND CONTRAST THE FOUR SCENARIOS
+# QUANTIFY PROBABILITY OF EXTINCTION OVER TIME
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>% select(future.growth.rate) %>%
+samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>%
+  #select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-mean.survival) %>%
+  gather(key="parameter", value="value") %>%
   mutate(Scenario="no management")
-samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>% select(future.growth.rate) %>%
+samplesoutM<-as.data.frame(rbind(AYNAscenarioM$samples[[1]],AYNAscenarioM$samples[[2]],AYNAscenarioM$samples[[3]],AYNAscenarioM$samples[[4]])) %>%
+  #select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-`beta[1]`,-`beta[2]`) %>%
+  gather(key="parameter", value="value") %>%
   mutate(Scenario="mouse eradication")
-samplesoutMB<-as.data.frame(rbind(AYNAscenarioMB$samples[[1]],AYNAscenarioMB$samples[[2]],AYNAscenarioMB$samples[[3]],AYNAscenarioMB$samples[[4]])) %>% select(future.growth.rate) %>%
-  mutate(Scenario="bycatch mitigation")
-samplesoutB<-as.data.frame(rbind(AYNAscenarioB$samples[[1]],AYNAscenarioB$samples[[2]],AYNAscenarioB$samples[[3]],AYNAscenarioB$samples[[4]])) %>% select(future.growth.rate) %>%
-  mutate(Scenario="mouse eradication and bycatch mitigation")
 
-medlam<-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>% group_by(Scenario) %>%
-  summarise(lam=mean(future.growth.rate))
 
-## CREATE HISTOGRAMS WITH MEDIAN LINES
-pdf("AYNA_future_growth_rate_Gough_management.pdf", width=11, height=9)
-rbind(samplesout0,samplesoutM,samplesoutMB,samplesoutB) %>%
+extprop <- rbind(samplesout0,samplesoutM) %>%
+  mutate(Year=sub(".*\\[(.*)\\].*", "\\1", parameter, perl=TRUE)) %>%
+  #mutate(Year=ifelse(grepl(",",Year),as.numeric(strsplit(Year,",", perl=TRUE)[2]),as.numeric(Year))) %>%
+  filter(grepl("Ntot.breed",parameter)) %>%
+  mutate(n=1, inc=ifelse(value<10,1,0)) %>%
+  group_by(Scenario,Year) %>%
+  summarise(ext.prob=sum(inc)/sum(n)) %>%
+  mutate(Year=as.numeric(Year)+1999) 
 
-ggplot()+
-  facet_wrap(~Scenario, ncol=2) +
-  geom_histogram(aes(x=future.growth.rate))+
-  geom_vline(data=medlam,aes(xintercept=lam), color='firebrick', size=1)+
-  xlab("Future population trend") +
-  ylab("Frequency of simulations") +
-  theme(panel.background=element_rect(fill="white", colour="black"), 
-        axis.text.y=element_text(size=16, color="black"),
-        axis.text.x=element_text(size=16, color="black", vjust=0.5), 
-        axis.title=element_text(size=16), 
-        strip.text.x=element_text(size=16, color="black"), 
-        strip.background=element_rect(fill="white", colour="black"), 
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), 
-        panel.border = element_blank())
+
+
+### produce plot with multiple lines per year
+
+#pdf("EV_extinction_probability_C3.pdf", width=10, height=7)
+#postscript("Fig1_Balkan.eps", width=9, height=6)
+#jpeg("Fig1_Balkan.jpg", width=9, height=6, units="in", res=600, quality=100)
+#par(oma=c(0,0,0,0),mar=c(4.2,4.5,0,0.5), cex=1.2)
+ggplot(data=extprop)+
+  geom_line(aes(x=Year, y=ext.prob, color=Scenario), size=1)+
+
+  ## format axis ticks
+  scale_y_continuous(name="Probability of extinction (%)", limits=c(0,0.8),breaks=seq(0,0.8,0.2), labels=as.character(seq(0,80,20)))+
+  scale_x_continuous(name="Year", breaks=seq(2000,2048,5), labels=as.character(seq(2000,2048,5)))+
+  guides(color=guide_legend(title="Scenario"),fill=guide_legend(title="Scenario"))+
+  
+  ## beautification of the axes
+  theme(panel.background=element_rect(fill="white", colour="black"), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text.y=element_text(size=18, color="black"),
+        axis.text.x=element_text(size=12, color="black",angle=45, vjust = 1, hjust=1), 
+        axis.title=element_text(size=18), 
+        strip.text.x=element_text(size=18, color="black"), 
+        strip.background=element_rect(fill="white", colour="black"))
 
 dev.off()
+
+
 
 
 
