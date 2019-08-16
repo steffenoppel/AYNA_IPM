@@ -76,7 +76,7 @@
       }
     
       ### PRIORS FOR RANDOM EFFECTS
-      sigma.surv[age] ~ dunif(1, 10)                     # Prior for standard deviation of survival
+      sigma.surv[age] ~ dunif(0, 3)                     # Prior for standard deviation of survival
       tau.surv[age] <- pow(sigma.surv[age], -2)
     
     }

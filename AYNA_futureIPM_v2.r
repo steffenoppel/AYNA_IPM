@@ -308,7 +308,7 @@ cat("
       }
     
       ### PRIORS FOR RANDOM EFFECTS
-      sigma.surv[age] ~ dunif(1, 10)                     # Prior for standard deviation of survival
+      sigma.surv[age] ~ dunif(0, 3)                     # Prior for standard deviation of survival
       tau.surv[age] <- pow(sigma.surv[age], -2)
     
     }
@@ -320,8 +320,8 @@ cat("
     
     ### PRIOR FOR BYCATCH EFFECTS
     #bycatch ~ dnorm(0,tau.byc)
-    sigma.byc ~ dunif(1, 10)                     # Prior for standard deviation of capture    
-    tau.byc <- pow(sigma.byc, -2)
+    #sigma.byc ~ dunif(1, 10)                     # Prior for standard deviation of capture    
+    #tau.byc <- pow(sigma.byc, -2)
     
     
     #-------------------------------------------------  
@@ -597,9 +597,9 @@ inits <- function(){list(beta = runif(2, 0.5, 0.99),
 parameters <- c("Ntot.breed","NOBS","ann.fec","skip.prob","imm.rec","ann.surv","lambda","fut.lambda","beta","mean.fec","mean.skip","mean.rec","mean.p","observed.growth.rate")  #,"hookpod"
 
 # MCMC settings
-ni <- 75000
-nt <- 5
-nb <- 25000
+ni <- 500000
+nt <- 2
+nb <- 250000
 nc <- 4
 
 
