@@ -254,7 +254,7 @@ cat("
     # -------------------------------------------------
     
     for (t in 1:T){  
-      ann.fec[t] ~ dunif(0.01,0.99)        ## Informative Priors on fecundity based on Cuthbert et al 2003: dnorm(0.67,50) T(0.01,0.99)
+      ann.fec[t] ~ dunif(0.3,0.8)        ## Informative Priors on fecundity based on Cuthbert et al 2003: dnorm(0.67,50) T(0.01,0.99)
       imm.rec[t] ~ dunif(0.01,0.99)       ## Informative Priors on annual recruitment based on Cuthbert et al 2003: dnorm(0.28,10) T(0.01,0.99)
       skip.prob[t] ~ dunif(0.01,0.99)     ## PRIOR FOR ADULT BREEDER SKIPPING PROBABILITY from Cuthbert paper that reported breeding propensity of 0.66: dnorm(0.34,10) T(0.01,0.99)
     } #t
@@ -621,7 +621,7 @@ AYNAscenarioM <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Go
 # SAVE OUTPUT - RESULT PROCESSING in AYNA_IPM_result_summaries.r
 #########################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-save.image("AYNA_IPM_v5_output.RData")
+save.image("AYNA_IPM_v5_converged_final.RData")
 
 
 

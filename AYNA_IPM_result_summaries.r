@@ -25,7 +25,7 @@ select<-dplyr::select
 # AYNAscenarioB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 # AYNAscenarioMB <- jags(jags.data, inits, parameters, "C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_projection_scenarioMB.jags", n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,parallel=T)
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-load("AYNA_IPM_v5_output.RData")
+load("AYNA_IPM_v5_converged_final.RData")
 
 
 
@@ -42,7 +42,7 @@ export0<-as.data.frame(AYNAscenario0$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=row.names(AYNAscenario0$summary)) %>%
   mutate(parameter=ifelse(grepl("ann.surv\\[1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("ann.surv\\[2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
-  mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
+  #mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
   mutate(Year=c(seq(2000,2048,1), ## Ntot.breed
                 seq(2005,2048,1), ## NOBS
                 seq(2000,2018,1), ## ann.fec
@@ -53,7 +53,11 @@ export0<-as.data.frame(AYNAscenario0$summary) %>% select(c(1,5,2,3,7,8)) %>%
                 rep(NA,8))) %>%  ## non-time varying parameters
   mutate(Scenario="no management")
 tail(export0)
+
+## check which parameters have not converged
 hist(export0$Rhat)
+export0 %>% filter(Rhat>1.1)
+
 
 exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
   setNames(c('Mean', 'Median','SD','lcl', 'ucl','Rhat')) %>%
@@ -73,7 +77,9 @@ exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
 tail(exportM)
 
 
-
+## check which parameters have not converged
+hist(exportM$Rhat)
+exportM %>% filter(Rhat>1.1)
 
 
 
@@ -84,15 +90,17 @@ tail(exportM)
 #########################################################################
 # PRODUCE TABLE 1 THAT SUMMARISES DEMOGRAPHIC RATES
 #########################################################################
-
-export0 %>% mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case = T)==T,"fecundity",parameter))%>%
+setwd("C:\\STEFFEN\\MANUSCRIPTS\\in_prep\\AYNA_IPM")
+Table1<-export0 %>% mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ignore.case = T)==T,"fecundity",parameter))%>%
     mutate(parameter=ifelse(grepl("imm.rec",parameter,perl=T,ignore.case = T)==T,"recruitment",parameter))%>%
-    mutate(parameter=ifelse(grepl("skip.",parameter,perl=T,ignore.case = T)==T,"breed.propensity",parameter))%>%
     mutate(parameter=ifelse(grepl("Ntot.breed",parameter,perl=T,ignore.case = T)==T,"pop.size",parameter)) %>%
   mutate(parameter=ifelse(grepl("fut.lambda",parameter,perl=T,ignore.case = T)==T,"future.growth.rate",parameter)) %>%
   mutate(parameter=ifelse(grepl("lambda",parameter,perl=T,ignore.case = T)==T,"population.growth.rate",parameter)) %>%
   group_by(parameter) %>%
-  summarise(median=mean(Median),lcl=mean(lcl),ucl=mean(ucl))
+  summarise(median=median(Median),lcl=median(lcl),ucl=median(ucl)) %>%
+  filter(parameter %in% c("mean.survival","mean.fec","fecundity","mean.p","mean.skip","mean.rec","recruitment","population.growth.rate","future.growth.rate","pop.size"))
+Table1
+fwrite(Table1,"C:\\STEFFEN\\MANUSCRIPTS\\in_prep\\AYNA_IPM\\Table1.csv")
 
 
 
@@ -191,6 +199,7 @@ dev.off()
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # QUANTIFY PROBABILITY OF EXTINCTION OVER TIME
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### no more extinction in v5b when model converged!
 
 samplesout0<-as.data.frame(rbind(AYNAscenario0$samples[[1]],AYNAscenario0$samples[[2]],AYNAscenario0$samples[[3]],AYNAscenario0$samples[[4]])) %>%
   #select(-pop.growth.rate,-future.growth.rate,-mean.fec,-bycatch,-deviance,-mean.survival) %>%
@@ -315,7 +324,7 @@ dev.off()
 # CORRELATION OF DEMOGRAPHIC PARAMETERS WITH FISHING EFFORT
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+pdf("YNAL_ICCAT_correlations.pdf", width=9, height=9)
 par(mfrow=c(2,2))
 
 plot(longlineICCAT~ad.fitted[1:18], xlim=c(0.5,1), ylim=c(-3,3), xlab="Adult survival probability",ylab="Fishing effort",las=1, type='p', pch=16, main="",frame=FALSE, cex.axis=1.3, cex=1, cex.lab=1.3)
@@ -338,7 +347,7 @@ segments(l.lower[1:18],longlineICCAT,l.upper[1:18],longlineICCAT,col="gray", lty
 test<-cor.test(l.fitted[1:18],longlineICCAT,alternative = c("two.sided"),method = "spearman")
 text(0.5,-2.5, sprintf("r = %f, p = %g",test$estimate, test$p.value), adj=0)
 
-
+dev.off()
 
 
 
