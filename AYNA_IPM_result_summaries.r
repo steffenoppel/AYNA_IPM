@@ -64,7 +64,7 @@ exportM<-as.data.frame(AYNAscenarioM$summary) %>% select(c(1,5,2,3,7,8)) %>%
   mutate(parameter=row.names(AYNAscenario0$summary)) %>%
   mutate(parameter=ifelse(grepl("1,",parameter,perl=T,ignore.case = T)==T,"juv.survival",parameter)) %>%
   mutate(parameter=ifelse(grepl("2,",parameter,perl=T,ignore.case = T)==T,"adult.survival",parameter)) %>%
-  mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
+  #mutate(parameter=ifelse(grepl("beta",parameter,perl=T,ignore.case = T)==T,"mean.survival",parameter)) %>%
   mutate(Year=c(seq(2000,2048,1), ## Ntot.breed
                 seq(2005,2048,1), ## NOBS
                 seq(2000,2018,1), ## ann.fec
@@ -98,7 +98,9 @@ Table1<-export0 %>% mutate(parameter=ifelse(grepl("ann.fec",parameter,perl=T,ign
   mutate(parameter=ifelse(grepl("lambda",parameter,perl=T,ignore.case = T)==T,"population.growth.rate",parameter)) %>%
   group_by(parameter) %>%
   summarise(median=median(Median),lcl=median(lcl),ucl=median(ucl)) %>%
-  filter(parameter %in% c("mean.survival","mean.fec","fecundity","mean.p","mean.skip","mean.rec","recruitment","population.growth.rate","future.growth.rate","pop.size"))
+  filter(parameter %in% c("beta[1]","beta[2]","mean.fec","fecundity","mean.p","mean.skip","mean.rec","recruitment","population.growth.rate","future.growth.rate","pop.size")) %>%
+  mutate(parameter=ifelse(parameter=="beta[1]","juv.survival",parameter)) %>%
+  mutate(parameter=ifelse(parameter=="beta[2]","adult.survival",parameter))
 Table1
 fwrite(Table1,"C:\\STEFFEN\\MANUSCRIPTS\\in_prep\\AYNA_IPM\\Table1.csv")
 
