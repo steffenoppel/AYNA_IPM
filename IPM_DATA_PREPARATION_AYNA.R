@@ -250,11 +250,12 @@ contacts %>% #filter(is.na(Date_Time)) %>%
 
 
 contacts<-contacts %>%
-  mutate(Contact_Season=if_else(is.na(Contact_Season),if_else(Age=="Chick",paste(Contact_Year-1,"-",substr(Contact_Year,3,4)),
-                                                              paste(Contact_Year,"-",as.integer(substr(Contact_Year,3,4))+1)),
+  mutate(Contact_Season=if_else(is.na(Contact_Season),if_else(Age=="Chick",paste(Contact_Year-1,"-",substr(Contact_Year,3,4), sep =""),
+                                                              paste(Contact_Year,"-",as.integer(substr(Contact_Year,3,4))+1, sep = "")),
                                 Contact_Season))
 dim(contacts)
 head(contacts)
+sort(unique(contacts$Contact_Season))
 
 
 
@@ -308,7 +309,17 @@ contacts<-fixed_contacts %>%
 dim(contacts)
 unique(contacts$FIRST_AGE)
 
+sort(unique(contacts$Contact_Season))
 
+all.seasons <- paste(1978:2021, "-", 
+                     c(79:99, 
+                       "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", 
+                       10:22), 
+                     sep = "")
+all.seasons
+which(!(all.seasons %in% sort(unique(contacts$Contact_Season))))
+no.contact.seasons <- all.seasons[which(!(all.seasons %in% sort(unique(contacts$Contact_Season))))]
+no.contact.seasons
 
 
 ################################################################################################
@@ -387,7 +398,28 @@ AYNA_CHICK<- contacts %>% mutate(count=1) %>%
   summarise(STATE=max(count)) %>%
   spread(key=Contact_Season, value=STATE, fill=0) %>%
   arrange(BirdID)
-dim(AYNA_CHICK)  ## TO DO: THIS MATRIX MUST BE PADDED BY YEARS WITH 0 CHICKS RINGED
+dim(AYNA_CHICK) 
+
+## THIS MATRIX MUST BE PADDED BY YEARS WITH 0 CHICKS RINGED
+colnames(AYNA_CHICK)[-1]
+length(colnames(AYNA_CHICK)[-1])
+which(!(all.seasons %in% colnames(AYNA_CHICK)[-1]))
+
+pad.chicks.vec <- all.seasons[which(!(all.seasons %in% colnames(AYNA_CHICK)[-1]))]
+pad.chicks.vec
+
+pad.chicks <- data.frame(matrix(0, nrow = dim(AYNA_CHICK)[1], ncol = length(pad.chicks.vec)))
+colnames(pad.chicks) <- pad.chicks.vec
+head(pad.chicks)
+
+AYNA_CHICK.tmp <- cbind(AYNA_CHICK, pad.chicks)
+colnames(AYNA_CHICK.tmp) <- c(colnames(AYNA_CHICK), pad.chicks.vec)
+colnames(AYNA_CHICK.tmp)
+
+AYNA_CHICK <- AYNA_CHICK.tmp %>% select("BirdID", sort(colnames(.)))
+colnames(AYNA_CHICK)[-1]
+dim(AYNA_CHICK)
+
 
 ### identify number of chicks ringed every year
 phi.juv.possible<-AYNA_CHICK %>% gather(key='Year', value='count',-BirdID) %>% group_by(Year) %>% summarise(N=sum(count)) %>%
@@ -405,6 +437,25 @@ AYNA_AD<- contacts %>% mutate(count=1) %>%
   ungroup() %>%
   select(-FIRST_AGE) %>%
   arrange(BirdID)
+dim(AYNA_AD)
+
+colnames(AYNA_AD)[-1]
+length(colnames(AYNA_AD)[-1])
+which(!(all.seasons %in% colnames(AYNA_AD)[-1]))
+all.seasons[which(!(all.seasons %in% colnames(AYNA_AD)[-1]))]
+pad.adults.vec <- all.seasons[which(!(all.seasons %in% colnames(AYNA_AD)[-1]))]
+pad.adults.vec
+
+pad.adults <- data.frame(matrix(0, nrow = dim(AYNA_AD)[1], ncol = length(pad.adults.vec)))
+colnames(pad.adults) <- pad.adults.vec
+head(pad.adults)
+
+AYNA_AD.tmp <- cbind(AYNA_AD, pad.adults)
+colnames(AYNA_AD.tmp) <- c(colnames(AYNA_AD), pad.adults.vec)
+colnames(AYNA_AD.tmp)
+
+AYNA_AD <- AYNA_AD.tmp %>% select("BirdID", sort(colnames(.)))
+colnames(AYNA_AD)[-1]
 dim(AYNA_AD)
 
 
