@@ -122,6 +122,11 @@ ggplot(aes(x=Year,y=TOT)) +geom_point(size=2, color='darkred')+
         panel.border = element_blank()) 
 
 
+### calculate proportions
+mean.props<-prop.table(as.matrix(POPSIZE[,2:12]),1)
+rowSums(mean.props)
+
+
 ### summary of population counts of fledglings per year and colony
 CHICKCOUNT<-counts %>% filter(Species==SP) %>%
   mutate(Colony= as.character(Colony)) %>%
