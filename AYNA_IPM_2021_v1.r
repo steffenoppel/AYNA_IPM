@@ -34,85 +34,36 @@ dim(adult.marray)
 
 
 ### COUNT DATA FOR POPULATION TREND ######
-AYNA.pop<-POPSIZE ##fread("AYNA_INCU_counts_2001_2020.csv")
-head(AYNA.pop)
-names(AYNA.pop)
-AYNA.pop[14,4]<-136   ### number of nests monitored in Gonydale that year
+head(POPSIZE)
+names(POPSIZE)
 
-## COMBINE SITES THAT WERE AMBIGUOUSLY DEFINED OVER TIME 
-AYNA.pop<-AYNA.pop %>% gather(key='Site', value='Count',-Year) %>%
-  filter(Year>2003) %>%   ### changed from 2003
-  mutate(Site=if_else(Site %in% c('GP Valley','West Point'),'GP Valley',as.character(Site))) %>%
-  mutate(Site=if_else(Site %in% c('Gonydale','Green Hill','Hummocks'),'Gonydale',as.character(Site))) %>%
-  group_by(Year,Site) %>%
-  summarise(Count=sum(Count, na.rm=T)) %>%
-  mutate(Count=ifelse(Count==0,NA,Count)) %>%
-  spread(key=Site, value=Count)
+POP<- as.matrix(POPSIZE[,2:12])
+n.years.count<-nrow(POP)
+n.sites.count<-ncol(POP)
 
-## to account for data gaps, need to quantify what proportion of the population was counted
-
-AYNA.props<-prop.table(as.matrix(AYNA.pop[,2:9]),1)
-#mean.props<-apply(AYNA.props[c(1,4,6:10,12:16,18:19),],2,mean) ## for start in 2001
-mean.props<-apply(AYNA.props[c(1,3:7,9:13,15:17),],2,mean) ## for start in 2004
-#mean.props<-apply(AYNA.props[c(1:3,5:9,11:14),],2,mean) ## for start in 2008
-
-AYNA.pop$prop.counted<-0
-for (l in 1:length(AYNA.pop$Year)){
-  AYNA.pop$prop.counted[l]<-sum(mean.props[which(!is.na(AYNA.pop[l,2:9]))])
-}
-
-
-## CALCULATE SUM PER YEAR 
-AYNA.pop$tot<-rowSums(AYNA.pop[,2:9], na.rm=T)
-#AYNA.pop$tot[c(2,3,11)]<-NA
-R<- as.matrix(AYNA.pop[,2:9])
-n.years<-nrow(R)
-n.sites<-ncol(R)
-
+### need top calculate prop.matrix
+prop.sites[s,t]
 
 
 ### PLOT TO SPOT ANY OUTLIERS OF BCOUNTS
-ggplot(AYNA.pop, aes(x=Year,y=tot)) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
-
-
+#ggplot(AYNA.pop, aes(x=Year,y=tot)) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
 
 
 #### BREEDING SUCCESS DATA FOR FECUNDITY ######
-AYNA.chick<-CHICKCOUNT  ##fread("AYNA_CHIC_counts_2001_2020.csv")
-## detailed nest data from Gonydale only available for some years - we use this to replace missing count data
-AYNA.bs<-FECUND ##fread("AYNA_breed_success_2006_2019.csv")
-AYNA.chick[AYNA.chick$Year==2013,4]<-as.integer(AYNA.pop[AYNA.pop$Year==2013,4]*AYNA.bs$BREED_SUCC[AYNA.bs$Year==2013])
-AYNA.chick[AYNA.chick$Year==2014,4]<-as.integer(AYNA.pop[AYNA.pop$Year==2014,4]*AYNA.bs$BREED_SUCC[AYNA.bs$Year==2014])
-
-AYNA.chick<-AYNA.chick %>% gather(key='Site', value='Count',-Year) %>%
-  filter(Year>2003) %>%  ### changed from 2003
-  mutate(Site=if_else(Site %in% c('GP Valley','West Point'),'GP Valley',as.character(Site))) %>%
-  mutate(Site=if_else(Site %in% c('Gonydale','Green Hill','Hummocks'),'Gonydale',as.character(Site))) %>%
-  group_by(Year,Site) %>%
-  summarise(Count=sum(Count, na.rm=T)) %>%
-  mutate(Count=ifelse(Count==0,NA,Count)) %>%
-  spread(key=Site, value=Count)
-
-### NOTE THAT USE OF 'if_else' switches Gonydale and GP_Valley columns around [only happens in R4.0.2!!]
-AYNA.chick[4,4]<-CHICKCOUNT[11,4] ### in 2011 no adults were counted in Green hill and Hummocks, so we cannot add up the chicks across those 3 sites
-
-
-AYNA.chick$tot<-rowSums(AYNA.chick[,2:9], na.rm=T)
-#AYNA.chick$tot[c(3,13,19)]<-NA   ## when start in 2001
-AYNA.chick$tot[10]<-NA   ## when start in 2004
-#AYNA.chick$tot[6]<-NA   ## when start in 2008
-
-J<- as.matrix(AYNA.chick[,2:9])
+J<- as.matrix(CHICKCOUNT[,2:5])
+R<- as.matrix(ADCOUNT[,2:5])
 
 ### specify constants for JAGS
-n.years<-dim(R)[1]		## defines the number of years
-n.sites<-dim(R)[2]    ## defines the number of study areas
+n.years.fec<-dim(R)[1]		## defines the number of years
+n.sites.fec<-dim(R)[2]    ## defines the number of study areas
 
 
-### UPDATE 10 January 2021 - reduce R and J to vectors of sum across the study areas for which we have data
+### reduce R and J to vectors of sum across the study areas for which we have data
+## will ensure appropriate weighting of breeding success by n pairs in each study area
+# Area 10 has twice as many pairs as other areas
 
-Jlong<-AYNA.chick %>% gather(key='Site', value="chicks",-Year)
-PROD.DAT<-AYNA.pop %>% select(-prop.counted,-tot) %>% gather(key='Site', value="adults",-Year) %>%
+Jlong<-CHICKCOUNT %>% gather(key='Site', value="chicks",-Year)
+PROD.DAT<-ADCOUNT %>% gather(key='Site', value="adults",-Year) %>%
   left_join(Jlong, by=c("Year","Site")) %>%
   mutate(include=ifelse(is.na(adults+chicks),0,1)) %>%
   filter(include==1) %>%
@@ -124,15 +75,15 @@ PROD.DAT<-AYNA.pop %>% select(-prop.counted,-tot) %>% gather(key='Site', value="
 
 
 ### DIMENSION MISMATCH IN DATA
-# IPM runs from 2004-2021 # changed on 7 February - and again on 4 June 2021
-# survival analysis runs from 1979-2021, but recapture index refers to columns, which represent year 1980-2021 plus the ones never recaptured (last column)
+# IPM runs from 2008-2021 
+# survival analysis runs from 1978-2021, but recapture index refers to columns, which represent year 1979-2021 plus the ones never recaptured (last column)
 # very difficult
 names(AYNA_CHICK)
-AYNA.pop$Year
+POPSIZE$Year
 
-OFFSET<-min(which(!is.na(match(as.numeric(names(AYNA_CHICK)[2:44]),AYNA.pop$Year))))
-names(AYNA_CHICK)[OFFSET+1]
-AYNA.pop$Year[1]
+OFFSET<-min(which(!is.na(match(as.numeric(substr(names(AYNA_CHICK)[2:44],1,4)),AYNA.pop$Year))))
+substr(names(AYNA_CHICK),1,4)[OFFSET+1]
+
 
 
 
@@ -140,16 +91,16 @@ AYNA.pop$Year[1]
 # SPECIFY FUTURE DECREASE IN SURVIVAL
 #########################################################################
 
-dec.surv=0.9  ## we assume that adult survival will decrease by 10%
-lag.time=10    ## the decrease will take 10 years to materialise
-PROJECTION.years<-seq(1,30,1)  ## we specify the relative survival decrease for all 30 years in the projection
-
-fut.surv.change<- expand.grid(PROJECTION.years,dec.surv,lag.time) %>%
-  rename(Year=Var1,SURV3=Var2,LAG=Var3) %>%
-  mutate(ann.offset=(SURV3-1)/LAG) %>%
-  mutate(SURV3=ifelse(Year<LAG,1+(Year*ann.offset),SURV3)) %>%
-  mutate(SURV1=1,SURV2=1) %>%
-  select(Year, SURV1,SURV2,SURV3)
+# dec.surv=0.9  ## we assume that adult survival will decrease by 10%
+# lag.time=10    ## the decrease will take 10 years to materialise
+# PROJECTION.years<-seq(1,30,1)  ## we specify the relative survival decrease for all 30 years in the projection
+# 
+# fut.surv.change<- expand.grid(PROJECTION.years,dec.surv,lag.time) %>%
+#   rename(Year=Var1,SURV3=Var2,LAG=Var3) %>%
+#   mutate(ann.offset=(SURV3-1)/LAG) %>%
+#   mutate(SURV3=ifelse(Year<LAG,1+(Year*ann.offset),SURV3)) %>%
+#   mutate(SURV1=1,SURV2=1) %>%
+#   select(Year, SURV1,SURV2,SURV3)
   
 
 
@@ -164,24 +115,13 @@ cat("
 model {
     #-------------------------------------------------
     # integrated population model for the Gough AYNA population
-    # - age structured model with 10 age classes 
+    # - age structured model with 30 age classes 
     # - adult survival based on CMR ringing data
     # - pre breeding census, female-based assuming equal sex ratio & survival
     # - productivity based on all areas incu and chick counts
-    # - simplified population process with assumed age at recruiting = 10 (Wanless et al. 2009)
-    # - adult breeders skipping when unsuccessful at rate of 22-32%, all successful breeders will skip
     # - linked population process with SUM OF count data
     # - v4 includes 3 scenarios of future projection: no change, improved fecundity, reduced adult survival
     # - marray_v1 uses marray for survival estimation to speed up computation time
-    # - marray_simplified adjusts population process to make number of bird returning completely random
-    # - marray_simplified_v2 further simplifies return process to tie to recapture probability
-    # - marray_simplified_v3 includes carrying capacity for future projections and re-inserts breeding success
-    # - marray_simplified_v4 calculates Ntot and lambda based on Ntot (rather than just breeding pop).
-    # - marray_simplified_v5 includes two values for p (high and low monitoring effort years) and sets p.juv to 0 for first year.
-    # - marray_simplified_v5 also calculates mean propensity and recruitment from annual values for good monitoring years.
-    # - marray_age_recruit allows for varying juvenile recapture probability with age.
-    # - marray_age_recruit_immat creates a loop over immature age classes rather than specify each age separately
-    # - marray_age_recruit_immat_2008 sets juv surv to mean and starts in 2008 rather than 2004
     # -------------------------------------------------
     
 #-------------------------------------------------  
@@ -193,7 +133,7 @@ model {
     # 1.1. Priors and constraints FOR FECUNDITY
     # -------------------------------------------------
     
-    for (t in 1:T){  
+    for (t in 1:n.years.fec){  
       ann.fec[t] ~ dbeta(32,68) ## dnorm(0.32,10) T(0.001,0.999)        ## Informative Priors on fecundity based on Wanless et al 2009
     } #t
     
@@ -201,8 +141,8 @@ model {
     # -------------------------------------------------        
     # 1.2. Priors and constraints FOR POPULATION COUNTS
     # -------------------------------------------------
-    for (s in 1:n.sites){			### start loop over every study area
-      for (t in 1:T){			### start loop over every year
+    for (s in 1:n.sites.count){			### start loop over every study area
+      for (t in 1:n.years.count){			### start loop over every year
         sigma.obs[s,t] ~ dexp(0.1)	#Prior for SD of observation process (variation in detectability)
         tau.obs[s,t]<-pow(sigma.obs[s,t],-2)
       }
@@ -215,7 +155,7 @@ model {
     
     ### RECAPTURE PROBABILITY
     for (gy in 1:2){    ## for good and poor monitoring years
-      mean.p.juv[gy] ~ dunif(0, 1)	           # Prior for mean juvenile recapture - should be higher than 20% if they survive!
+      mean.p.juv[gy] ~ dunif(0, 1)	         # Prior for mean juvenile recapture - should be higher than 20% if they survive!
       mean.p.ad[gy] ~ dunif(0, 1)	           # Prior for mean adult recapture - should be higher than 20%
       mu.p.juv[gy] <- log(mean.p.juv[gy] / (1-mean.p.juv[gy])) # Logit transformation
       mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
@@ -267,7 +207,7 @@ model {
     # -------------------------------------------------
     
     ### INITIAL VALUES FOR COMPONENTS FOR YEAR 1 - based on deterministic multiplications
-    ## ADJUSTED BASED ON PAST POPULATION SIZES WIT CHICK COUNTS SINCE 1999
+    ## ADJUSTED BASED ON PAST POPULATION SIZES WITH CHICK COUNTS SINCE 1999
     
     IM[1,1,1] ~ dnorm(324,20) T(0,)                                 ### number of 1-year old survivors is low because few chicks hatched in 2003 - CAN BE MANIPULATED
     IM[1,1,2] <- 0
@@ -341,8 +281,8 @@ model {
     # Ntot.breed comprised of first-time breeders, previous skippers, and previous unsuccessful breeders
     # simplified in simplified_v2 to just adult survivors with p.ad as proportion returning
     
-    N.ad.surv[tt] ~ dbin(phi.ad[tt+24], round(Ntot.breed[tt-1]+N.atsea[tt-1]))           ### previous year's adults that survive
-    N.breed.ready[tt] ~ dbin(p.ad[tt+24], N.ad.surv[tt])                  ### number of available breeders is proportion of survivors that returns
+    N.ad.surv[tt] ~ dbin(phi.ad[tt+31], round(Ntot.breed[tt-1]+N.atsea[tt-1]))           ### previous year's adults that survive
+    N.breed.ready[tt] ~ dbin(p.ad[tt+31], N.ad.surv[tt])                  ### number of available breeders is proportion of survivors that returns
     Ntot.breed[tt]<- round(N.breed.ready[tt]+N.recruits[tt])              ### number of counted breeders is sum of old breeders returning and first recruits
     N.atsea[tt] <- round(N.ad.surv[tt]-N.breed.ready[tt])                     ### potential breeders that remain at sea    
     
@@ -359,12 +299,12 @@ model {
     # 2.2. Observation process for population counts: state-space model of annual counts
     # -------------------------------------------------
     
-    for (s in 1:n.sites){			### start loop over every study area
+    for (s in 1:n.sites.count){			### start loop over every study area
     
       ## Observation process
     
-      for (t in 1:T){
-        y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[s], tau.obs[s,t])								# Distribution for random error in observed numbers (counts)
+      for (t in 1:n.years.count){
+        y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[s,t], tau.obs[s,t])								# Distribution for random error in observed numbers (counts)
       }														# run this loop over t= nyears
     }		## end site loop
     
@@ -372,10 +312,11 @@ model {
     # -------------------------------------------------        
     # 2.3. Likelihood for fecundity: Logistic regression from the number of surveyed broods
     # -------------------------------------------------
-
-    for (t in 1:(T-1)){
-      J[t] ~ dbin(ann.fec[t], R[t])
-    } #	close loop over every year in which we have fecundity data
+    #for (s in 1:n.sites.fec){			### start loop over every study area
+      for (t in 1:(n.year.fec-1)){
+        J[t] ~ dbin(ann.fec[t], R[t])
+      } #	close loop over every year in which we have fecundity data
+    }#
     
     
     
@@ -494,7 +435,7 @@ model {
     
   
       ## INCLUDE CARRYING CAPACITY OF 2500 breeding pairs (slightly more than maximum ever counted)
-      carr.capacity[scen,tt] ~ dnorm(2500,5) T(0,)
+      #carr.capacity[scen,tt] ~ dnorm(2500,5) T(0,)
     
       ## THE PRE-BREEDING YEARS ##
       ## because it goes for 30 years, all pops must be safeguarded to not become 0 because that leads to invald parent error
@@ -564,14 +505,16 @@ jags.data <- list(marr.j = chick.marray,
                   juv.poss=phi.juv.possible$JuvSurv, ### sets the annual survival of juveniles to the mean if <70 were ringed
                   
                   ### count data
-                  n.sites=n.sites,
-                  T = n.years,
-                  prop.sites=mean.props,
-                  y.count=R,    ### use log(R) here if using the logscale model
+                  n.sites.count=n.sites.count,
+                  n.years.count= n.years.count,
+                  prop.sites=mean.props,  ### need to calculate
+                  y.count=POP,    ### use log(R) here if using the logscale model
                   
                   ### breeding success data
                   J=PROD.DAT$J,
                   R=PROD.DAT$R,
+                  n.sites.fec=n.sites.fec,
+                  n.years.fec= n.years.fec,
                   
                   ### longline effort data
                   #longline=longlineICCAT,
@@ -580,7 +523,7 @@ jags.data <- list(marr.j = chick.marray,
                   FUT.YEAR=30,  ### for different scenarios future starts at 1
                   n.scenarios=3,
                   fut.surv.change=as.matrix(fut.surv.change[,2:4]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
-                  fut.fec.change=c(1,2,1)     ## future fecundity change - vector with one element for each scenario
+                  fut.fec.change=c(1,1,1)     ## future fecundity change - vector with one element for each scenario
                   )
 
 
