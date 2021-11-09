@@ -78,23 +78,23 @@ PROD.DAT<-ADCOUNT %>% gather(key='Site', value="adults",-Year) %>%
 names(AYNA_CHICK)
 POPSIZE$Year
 
-OFFSET<-min(which(!is.na(match(as.numeric(substr(names(AYNA_CHICK)[2:44],1,4)),AYNA.pop$Year))))
+OFFSET<-min(which(!is.na(match(as.numeric(substr(names(AYNA_CHICK)[2:44],1,4)),POPSIZE$Year))))
 substr(names(AYNA_CHICK),1,4)[OFFSET+1]
 
 #########################################################################
 # SPECIFY FUTURE DECREASE IN SURVIVAL
 #########################################################################
 
-# dec.surv=0.9  ## we assume that adult survival will decrease by 10%
-# lag.time=10    ## the decrease will take 10 years to materialise
-# PROJECTION.years<-seq(1,30,1)  ## we specify the relative survival decrease for all 30 years in the projection
-# 
-# fut.surv.change<- expand.grid(PROJECTION.years,dec.surv,lag.time) %>%
-#   rename(Year=Var1,SURV3=Var2,LAG=Var3) %>%
-#   mutate(ann.offset=(SURV3-1)/LAG) %>%
-#   mutate(SURV3=ifelse(Year<LAG,1+(Year*ann.offset),SURV3)) %>%
-#   mutate(SURV1=1,SURV2=1) %>%
-#   select(Year, SURV1,SURV2,SURV3)
+dec.surv=0.9  ## we assume that adult survival will decrease by 10%
+lag.time=10    ## the decrease will take 10 years to materialise
+PROJECTION.years<-seq(1,30,1)  ## we specify the relative survival decrease for all 30 years in the projection
+
+fut.surv.change<- expand.grid(PROJECTION.years,dec.surv,lag.time) %>%
+  rename(Year=Var1,SURV3=Var2,LAG=Var3) %>%
+  mutate(ann.offset=(SURV3-1)/LAG) %>%
+  mutate(SURV3=ifelse(Year<LAG,1+(Year*ann.offset),SURV3)) %>%
+  mutate(SURV1=1,SURV2=1) %>%
+  select(Year, SURV1,SURV2,SURV3)
   
 
 
@@ -546,7 +546,7 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
                          # IM[,4,1]= c(rnorm(1, 207, 0.1),rep(NA,n.years-1)),
                          # IM[,5,1]= c(rnorm(1, 700, 0.1),rep(NA,n.years-1)),
                          # IM[,6,1]= c(runif(1, 150, 300),rep(NA,n.years-1)),
-                         sigma.obs=matrix(runif(n.sites*n.years,1,20),ncol=n.years))}
+                         sigma.obs=matrix(runif(n.sites.count*n.years.count,1,20),ncol=n.years.count))}
 
  
 
@@ -559,13 +559,13 @@ parameters <- c("mean.phi.ad","mean.phi.juv","mean.fec","mean.propensity",
                 "mean.p.sd","sigma.p","sigma.phi")
 
 # MCMC settings
-
 nt <- 1#0
 nb <- 25#000
 nad <- 2#000
 nc <- 3
 ns <- 20#0000 #longest
 
+# run the model in run jags
 start.time <- Sys.time()
 AYNAipm <- run.jags(data=jags.data, inits=inits, parameters, 
                     model="AYNA_IPM_marray_v1.jags",
