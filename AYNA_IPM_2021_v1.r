@@ -209,43 +209,49 @@ model {
     # -------------------------------------------------
     
     ### INITIAL VALUES FOR COMPONENTS FOR YEAR 1 - based on deterministic multiplications
-    ## ADJUSTED BASED ON PAST POPULATION SIZES WITH CHICK COUNTS IN AREA 1 SINCE 2003
-    ## ASSUMING AREA 1 IS ABOUT 10% of POPULATION SURVEYED, 
-    ## BUT WITH BREEDING SUCCESS A BIT HIGHER THAN OTHER AREAS
+    ## ADJUSTED BASED ON PAST POPULATION SIZES + BREEDING SUCCESS IN AREAS WITH COUNTS SINCE 2003
     ## BASED ON WANLESS PAPER, JUVENILES SURVIVE ON AVERAGE WITH RATE 0.757, ADULTS 0.973
     ## GIVES ROUGH ESTIMATE OF EXPECTED NUMBER IN EACH AGE CLASS
+    ## CALCULATIONS ARE EST POP SIZE * EST BREEDING SUCCESS  * EST JUV SURVIVAL * EST ADULT SURVIVAL^N.YEARS
     
-    IM[1,1,1] ~ dnorm(200,40) T(0,)                                 ### number of 1-year old survivors is uncertain in 2007 - CAN BE MANIPULATED
+    IM[1,1,1] ~ dnorm(263,40) T(0,)                                 ### number of 1-year old survivors is uncertain in 2007 (700*0.5*0.75) - CAN BE MANIPULATED
     IM[1,1,2] <- 0
     IM[1,1,3] <- IM[1,1,1] - IM[1,1,2]
     
-    IM[1,2,1] ~ dnorm(225,20) T(0,)                                  ### number of 2-year old survivors is roughly average in 2006 - CAN BE MANIPULATED
+    IM[1,2,1] ~ dnorm(275,20) T(0,)                                  ### number of 2-year old survivors is roughly average in 2006 (680*0.6*0.75*0.9) CAN BE MANIPULATED
     IM[1,2,2] <- IM[1,2,1]*p.juv.recruit.f[2]
-    IM[1,2,3] <- IM[1,1,1] - IM[1,1,2]
+    IM[1,2,3] <- IM[1,2,1] - IM[1,2,2]
     
-    IM[1,3,1] ~ dnorm(250,40) T(0,)                                 ### number of 3-year old survivors is uncertain in 2005 - CAN BE MANIPULATED
+    IM[1,3,1] ~ dnorm(264,40) T(0,)                                 ### number of 3-year old survivors is uncertain in 2005 (680*0.64*0.75*0.9^2) - CAN BE MANIPULATED
     IM[1,3,2] <- IM[1,3,1]*p.juv.recruit.f[3]
-    IM[1,3,3] <- IM[1,1,1] - IM[1,1,2]
+    IM[1,3,3] <- IM[1,3,1] - IM[1,3,2]
     
-    IM[1,4,1] ~ dnorm(271,20) T(0,)                                 ### number of 4-year old survivors is average in 2004 - CAN BE MANIPULATED
+    IM[1,4,1] ~ dnorm(177,20) T(0,)                                 ### number of 4-year old survivors is average in 2004 (540*0.6*0.75*0.9^3) - CAN BE MANIPULATED
     IM[1,4,2] <- IM[1,4,1]*p.juv.recruit.f[4]
-    IM[1,4,3] <- IM[1,1,1] - IM[1,1,2]
+    IM[1,4,3] <- IM[1,4,1] - IM[1,4,2]
     
-    IM[1,5,1] ~ dnorm(295,10) T(0,)                                  ### number of 5-year old survivors is high in 2003  - CAN BE MANIPULATED
+    IM[1,5,1] ~ dnorm(290,20) T(0,)                                  ### number of 5-year old survivors is high in 2003 (709*0.83*0.75*0.9^4) - CAN BE MANIPULATED
     IM[1,5,2] <- IM[1,5,1]*p.juv.recruit.f[5]
-    IM[1,5,3] <- IM[1,1,1] - IM[1,1,2]
+    IM[1,5,3] <- IM[1,5,1] - IM[1,5,2]
+
+    IM[1,6,1] ~ dnorm(90,20) T(0,)                                  ### number of 6-year old survivors is high in 2002 (600*0.34*0.75*0.9^5) - CAN BE MANIPULATED
+    IM[1,6,2] <- IM[1,6,1]*p.juv.recruit.f[6]
+    IM[1,6,3] <- IM[1,6,1] - IM[1,6,2]
+
+    IM[1,7,1] ~ dnorm(158,20) T(0,)                                  ### number of 7-year old survivors is high in 2001 (650*0.61*0.75*0.9^6) - CAN BE MANIPULATED
+    IM[1,7,2] <- IM[1,7,1]*p.juv.recruit.f[7]
+    IM[1,7,3] <- IM[1,7,1] - IM[1,7,2]
     
-    for(age in 6:30) {
+    for(age in 8:30) {
     IM[1,age,1] ~ dbin(pow(mean.phi.ad,(age-1)), round(IM[1,age-1,3]))
     IM[1,age,2] <- IM[1,age,1]*p.juv.recruit.f[age]
     IM[1,age,3] <- IM[1,age,1] - IM[1,age,2]
     }
     N.recruits[1] <- sum(IM[1,,2])  ### number of this years recruiters - irrelevant in year 1 as already included in Ntot.breed prior
     
-    # TODO - need to change these
-    Ntot.breed[1] ~ dnorm(1869,100) T(0,)  ### sum of counts is 1869
-    JUV[1] ~ dnorm(510,100) T(0,)          ### sum of chicks is 510
-    N.atsea[1] ~ dnorm(530,20) T(0,)    ### unknown number - CAN BE MANIPULATED
+    Ntot.breed[1] ~ dnorm(640,50) T(0,)  ### sum of counts is 640 ( sum(POP[1, ]) <- across 11 study areas )
+    JUV[1] ~ dnorm(232,50) T(0,)          ### sum of chicks is 232 ( sum(mean.props[1, c(1,2,4,5)]) <- only 4 study areas counted, so correct w proportion )
+    N.atsea[1] ~ dnorm(224,20) T(0,)    ### unknown number, but assume about 65% breeding each year per Cuthbert 2003 (sum(POP[1, ]) * (1-0.65)) - CAN BE MANIPULATED
     Ntot[1]<-sum(IM[1,,3]) + Ntot.breed[1]+N.atsea[1]  ## total population size is all the immatures plus adult breeders and adults at sea - does not include recruits in Year 1
     
     
