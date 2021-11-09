@@ -41,9 +41,6 @@ POP<- as.matrix(POPSIZE[,2:12])
 n.years.count<-nrow(POP)
 n.sites.count<-ncol(POP)
 
-### need top calculate prop.matrix
-prop.sites[s,t]
-
 
 ### PLOT TO SPOT ANY OUTLIERS OF BCOUNTS
 #ggplot(AYNA.pop, aes(x=Year,y=tot)) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
@@ -84,27 +81,12 @@ POPSIZE$Year
 OFFSET<-min(which(!is.na(match(as.numeric(substr(names(AYNA_CHICK)[2:44],1,4)),AYNA.pop$Year))))
 substr(names(AYNA_CHICK),1,4)[OFFSET+1]
 
+# TODO comment this
+FECUND.4inits <- FECUND %>% 
+  mutate(n_chicks = BREED_SUCC * n_nests, n.years.to.survive = IPMstart-Year) %>% 
+  mutate(n_init = if_else(n.years.to.survive == 1, 10 * n_chicks * 0.9 * 0.757, 10 * n_chicks * 0.9 * 0.757 * 0.973^(abs(n.years.to.survive-1))))
 
-#
-
-CHICKCOUNT.4priors <- counts %>% filter(Species==SP) %>%
-  mutate(Colony= as.character(Colony)) %>%
-  mutate(Year=year(Date)) %>%
-  filter(Year>IPMstart) %>%
-  filter(month(Date)<6) %>% ## need to exclude small chick counts in Dec
-  filter(Breed_Stage %in% c("CHIC","FLED")) %>%
-  filter(Cohort %in% c("CHIC","FLED")) %>%
-  group_by(Year,Colony) %>%
-  summarise(N=sum(Number, na.rm=T)) %>%
-  ungroup() %>%
-  spread(key=Colony, value=N) %>% 
-  select(Year,`Area 1`,`Area 2`,`Area 3`,`Area 10`) %>%
-  mutate(Year=Year-1) %>%
-  arrange(Year)
-
-CHICKCOUNT
-FECUND
-
+FECUND.4inits
 
 #########################################################################
 # SPECIFY FUTURE DECREASE IN SURVIVAL
@@ -227,46 +209,40 @@ model {
     # -------------------------------------------------
     
     ### INITIAL VALUES FOR COMPONENTS FOR YEAR 1 - based on deterministic multiplications
-    ## ADJUSTED BASED ON PAST POPULATION SIZES WITH CHICK COUNTS SINCE 1999
-
-    # area 1 breeding success was uncertain in 07
-    # average in 06
-    # uncertain in 05
-    # average in 04
-    # high in 03
-
+    ## ADJUSTED BASED ON PAST POPULATION SIZES WITH CHICK COUNTS IN AREA 1 SINCE 2003
+    ## ASSUMING AREA 1 IS ABOUT 10% of POPULATION SURVEYED, 
+    ## BUT WITH BREEDING SUCCESS A BIT HIGHER THAN OTHER AREAS
+    ## BASED ON WANLESS PAPER, JUVENILES SURVIVE ON AVERAGE WITH RATE 0.757, ADULTS 0.973
+    ## GIVES ROUGH ESTIMATE OF EXPECTED NUMBER IN EACH AGE CLASS
     
-    IM[1,1,1] ~ dnorm(324,20) T(0,)                                 ### number of 1-year old survivors is uncer because few chicks hatched in 2007 - CAN BE MANIPULATED
+    IM[1,1,1] ~ dnorm(200,40) T(0,)                                 ### number of 1-year old survivors is uncertain in 2007 - CAN BE MANIPULATED
     IM[1,1,2] <- 0
     IM[1,1,3] <- IM[1,1,1] - IM[1,1,2]
     
-    IM[1,2,1] ~ dnorm(257,20) T(0,)                                  ### number of 2-year old survivors is very low because very few chicks hatched in 2006 - CAN BE MANIPULATED
+    IM[1,2,1] ~ dnorm(225,20) T(0,)                                  ### number of 2-year old survivors is roughly average in 2006 - CAN BE MANIPULATED
     IM[1,2,2] <- IM[1,2,1]*p.juv.recruit.f[2]
     IM[1,2,3] <- IM[1,1,1] - IM[1,1,2]
     
-    IM[1,3,1] ~ dnorm(462,20) T(0,)                                 ### number of 3-year old survivors is higher because many chicks hatched in 2005 - CAN BE MANIPULATED
+    IM[1,3,1] ~ dnorm(250,40) T(0,)                                 ### number of 3-year old survivors is uncertain in 2005 - CAN BE MANIPULATED
     IM[1,3,2] <- IM[1,3,1]*p.juv.recruit.f[3]
     IM[1,3,3] <- IM[1,1,1] - IM[1,1,2]
     
-    IM[1,4,1] ~ dnorm(207,20) T(0,)                                 ### number of 4-year old survivors is very low because few chicks hatched in 2004 - CAN BE MANIPULATED
+    IM[1,4,1] ~ dnorm(271,20) T(0,)                                 ### number of 4-year old survivors is average in 2004 - CAN BE MANIPULATED
     IM[1,4,2] <- IM[1,4,1]*p.juv.recruit.f[4]
     IM[1,4,3] <- IM[1,1,1] - IM[1,1,2]
     
-    IM[1,5,1] ~ dnorm(700,10) T(0,)                                  ### number of 5-year old survivors is huge because a lot of chicks hatched in 2003  - CAN BE MANIPULATED
+    IM[1,5,1] ~ dnorm(295,10) T(0,)                                  ### number of 5-year old survivors is high in 2003  - CAN BE MANIPULATED
     IM[1,5,2] <- IM[1,5,1]*p.juv.recruit.f[5]
     IM[1,5,3] <- IM[1,1,1] - IM[1,1,2]
     
-    IM[1,6,1] ~ dnorm(225,20) T(0,)                                 ### very uncertain number of of 6-year old survivors because no data from 1998 or previously  - CAN BE MANIPULATED
-    IM[1,6,2] <- IM[1,6,1]*p.juv.recruit.f[6]
-    IM[1,6,3] <- IM[1,1,1] - IM[1,1,2]
-    
-    for(age in 7:30) {
+    for(age in 6:30) {
     IM[1,age,1] ~ dbin(pow(mean.phi.ad,(age-1)), round(IM[1,age-1,3]))
     IM[1,age,2] <- IM[1,age,1]*p.juv.recruit.f[age]
     IM[1,age,3] <- IM[1,age,1] - IM[1,age,2]
     }
     N.recruits[1] <- sum(IM[1,,2])  ### number of this years recruiters - irrelevant in year 1 as already included in Ntot.breed prior
     
+    # TODO - need to change these
     Ntot.breed[1] ~ dnorm(1869,100) T(0,)  ### sum of counts is 1869
     JUV[1] ~ dnorm(510,100) T(0,)          ### sum of chicks is 510
     N.atsea[1] ~ dnorm(530,20) T(0,)    ### unknown number - CAN BE MANIPULATED
@@ -275,13 +251,13 @@ model {
     
     ### FOR EVERY SUBSEQUENT YEAR POPULATION PROCESS
     
-    for (tt in 2:T){
+    for (tt in 2:n.years.fec){
     
     ## THE PRE-BREEDING YEARS ##
     
     ## define recruit probability for various ages ##
     for (age in 1:30) {
-    logit(p.juv.recruit[age,tt])<-mu.p.juv[2] + eps.p[tt+24] + (agebeta * age)
+    logit(p.juv.recruit[age,tt])<-mu.p.juv[2] + eps.p[tt+31-1] + (agebeta * age)
     }
     
     
@@ -292,12 +268,12 @@ model {
     
     nestlings[tt] <- ann.fec[tt] * 0.5 * Ntot.breed[tt]                                                     ### number of locally produced FEMALE chicks
     JUV[tt] ~ dpois(nestlings[tt])                                                                     ### need a discrete number otherwise dbin will fail, dpois must be >0
-    IM[tt,1,1] ~ dbin(phi.juv[tt+24], max(1,round(JUV[tt-1])))                                  ### number of 1-year old survivors 
+    IM[tt,1,1] ~ dbin(phi.juv[tt+31-1], max(1,round(JUV[tt-1])))                                  ### number of 1-year old survivors 
     IM[tt,1,2] <- 0
     IM[tt,1,3] <- IM[tt,1,1] - IM[tt,1,2]
     
     for(age in 2:30) {
-    IM[tt,age,1] ~ dbin(phi.ad[tt+24], max(1,round(IM[tt-1,age-1,3])))
+    IM[tt,age,1] ~ dbin(phi.ad[tt+31-1], max(1,round(IM[tt-1,age-1,3])))
     IM[tt,age,2] <- min(round(IM[tt,age-1,3]),IM[tt,age,1])*p.juv.recruit[age,tt]
     IM[tt,age,3] <- IM[tt,age,1] - IM[tt,age,2]
     }
@@ -307,9 +283,11 @@ model {
     ## THE BREEDING POPULATION ##
     # Ntot.breed comprised of first-time breeders, previous skippers, and previous unsuccessful breeders
     # simplified in simplified_v2 to just adult survivors with p.ad as proportion returning
+
+    ## CAREFUL HERE TO ADD OFFSET SUCH THAT SURVIVAL YEARS ALIGN WITH COUNT YEARS
     
-    N.ad.surv[tt] ~ dbin(phi.ad[tt+31], round(Ntot.breed[tt-1]+N.atsea[tt-1]))           ### previous year's adults that survive
-    N.breed.ready[tt] ~ dbin(p.ad[tt+31], N.ad.surv[tt])                  ### number of available breeders is proportion of survivors that returns
+    N.ad.surv[tt] ~ dbin(phi.ad[tt+31-1], round(Ntot.breed[tt-1]+N.atsea[tt-1]))           ### previous year's adults that survive
+    N.breed.ready[tt] ~ dbin(p.ad[tt+31-1], N.ad.surv[tt])                  ### number of available breeders is proportion of survivors that returns
     Ntot.breed[tt]<- round(N.breed.ready[tt]+N.recruits[tt])              ### number of counted breeders is sum of old breeders returning and first recruits
     N.atsea[tt] <- round(N.ad.surv[tt]-N.breed.ready[tt])                     ### potential breeders that remain at sea    
     
@@ -330,8 +308,8 @@ model {
     
       ## Observation process
     
-      for (t in 1:n.years.count){
-        y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[s,t], tau.obs[s,t])								# Distribution for random error in observed numbers (counts)
+      for (t in 1:n.years.fec){
+        y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[t,s], tau.obs[s,t])								# Distribution for random error in observed numbers (counts)
       }														# run this loop over t= nyears
     }		## end site loop
     
@@ -340,10 +318,10 @@ model {
     # 2.3. Likelihood for fecundity: Logistic regression from the number of surveyed broods
     # -------------------------------------------------
     #for (s in 1:n.sites.fec){			### start loop over every study area
-      for (t in 1:(n.year.fec-1)){
+      for (t in 1:(n.years.fec-1)){
         J[t] ~ dbin(ann.fec[t], R[t])
       } #	close loop over every year in which we have fecundity data
-    }#
+    #}
     
     
     
@@ -396,13 +374,13 @@ model {
     
     
     ## DERIVED POPULATION GROWTH RATE PER YEAR
-    for (t in 1:(n.years.count-1)){
+    for (t in 1:(n.years.fec-1)){
       lambda[t]<-Ntot[t+1]/max(1,Ntot[t])  ## division by 0 creates invalid parent value
     }		## end year loop
     
     ## DERIVED MEAN FECUNDITY 
     mean.fec <- mean(ann.fec)
-    pop.growth.rate <- exp((1/(n.years.count-1))*sum(log(lambda[1:(n.years.count-1)])))   # Geometric mean
+    #pop.growth.rate <- exp((1/(n.years.fec-1))*sum(log(lambda[1:(n.years.fec-1)])))   # Geometric mean
     
     
 #-------------------------------------------------  
@@ -413,10 +391,10 @@ model {
   ## scenario 2: successful mouse eradication in 2021 - fecundity doubles
   ## scenario 3: increasing mouse impacts on adult survival (adult survival decreases by 10%)
     
-    # ## recruit probability
-    # for (age in 1:30) {
-    #   logit(p.juv.recruit.f[age])<-mu.p.juv[2] + (agebeta * age)
-    # }
+    ## recruit probability
+    for (age in 1:30) {
+      logit(p.juv.recruit.f[age])<-mu.p.juv[2] + (agebeta * age)
+    }
 
 
   # -------------------------------------------------        
@@ -434,18 +412,18 @@ model {
     # 3: unrecruited in current year (available for recruitment next year)
 
     nestlings.f[scen,1] ~ dbin(fut.fec.change[scen]*mean.fec*0.5,round(Ntot.breed.f[scen,1]))                      ### number of locally produced FEMALE chicks based on average fecundity 
-    IM.f[scen,1,1,1] ~ dbin(mean.phi.juv, max(1,round(JUV[n.years.count])))                                  ### number of 1-year old survivors 
+    IM.f[scen,1,1,1] ~ dbin(mean.phi.juv, max(1,round(JUV[n.years.fec])))                                  ### number of 1-year old survivors 
     IM.f[scen,1,1,2] <- 0
     IM.f[scen,1,1,3] <- IM.f[scen,1,1,1] - IM.f[scen,1,1,2]
     
     for(age in 2:30) {
-      IM.f[scen,1,age,1] ~ dbin(mean.phi.ad, max(1,round(IM[T,age-1,3])))
-      IM.f[scen,1,age,2] <- min(round(IM[T,age-1,3]),IM.f[scen,1,age,1])*p.juv.recruit.f[age]
+      IM.f[scen,1,age,1] ~ dbin(mean.phi.ad, max(1,round(IM[n.years.fec,age-1,3])))
+      IM.f[scen,1,age,2] <- min(round(IM[n.years.fec,age-1,3]),IM.f[scen,1,age,1])*p.juv.recruit.f[age]
       IM.f[scen,1,age,3]   <- IM.f[scen,1,age,1] - IM.f[scen,1,age,2]
     }
     N.recruits.f[scen,1] <- sum(IM.f[scen,1,,2])  ### number of this years recruiters
     
-    N.ad.surv.f[scen,1] ~ dbin(mean.phi.ad, round(Ntot.breed[n.years.count]+N.atsea[n.years.count]))              ### previous year's adults that survive
+    N.ad.surv.f[scen,1] ~ dbin(mean.phi.ad, round(Ntot.breed[n.years.fec]+N.atsea[n.years.fec]))              ### previous year's adults that survive
     N.breed.ready.f[scen,1] ~ dbin(mean.p.ad[2], round(N.ad.surv.f[scen,1]))              ### number of available breeders is proportion of survivors that returns, with fecundity INCLUDED in return probability
     Ntot.breed.f[scen,1]<- round(N.breed.ready.f[scen,1]+N.recruits.f[scen,1])            ### number of counted breeders is sum of old breeders returning and first recruits
     N.atsea.f[scen,1] <- round(N.ad.surv.f[scen,1]-N.breed.ready.f[scen,1])               ### potential breeders that remain at sea
@@ -487,7 +465,8 @@ model {
       N.ad.surv.f[scen,tt] ~ dbin(fut.surv.change[tt,scen]*mean.phi.ad, round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1]))           ### previous year's adults that survive
       N.prev.succ.f[scen,tt] ~ dbin(fut.surv.change[tt,scen]*mean.phi.ad, round(N.succ.breed.f[scen,tt-1]))                  ### these birds will  remain at sea because tey bred successfully
       N.breed.ready.f[scen,tt] ~ dbin(min(0.99,(mean.p.ad[2]/(1-mean.fec))), max(1,round(N.ad.surv.f[scen,tt])))                  ### number of available breeders is proportion of survivors that returns, with fecundity partialled out of return probability
-      Ntot.breed.f[scen,tt]<- min(carr.capacity[scen,tt],round(N.breed.ready.f[scen,tt]+N.recruits.f[scen,tt]))              ### number of counted breeders is sum of old breeders returning and first recruits
+      #Ntot.breed.f[scen,tt]<- min(carr.capacity[scen,tt],round(N.breed.ready.f[scen,tt]+N.recruits.f[scen,tt]))              ### number of counted breeders is sum of old breeders returning and first recruits
+      Ntot.breed.f[scen,tt]<- round(N.breed.ready.f[scen,tt]+N.recruits.f[scen,tt])
       N.succ.breed.f[scen,tt] ~ dbin(fut.fec.change[scen]*mean.fec, round(Ntot.breed.f[scen,tt]))                  ### these birds will  remain at sea because tey bred successfully
       N.atsea.f[scen,tt] <- round(N.ad.surv.f[scen,tt]-N.breed.ready.f[scen,tt]+N.prev.succ.f[scen,tt])                     ### potential breeders that remain at sea
 
@@ -548,9 +527,9 @@ jags.data <- list(marr.j = chick.marray,
                   
                   # ### FUTURE PROJECTION
                   FUT.YEAR=30,  ### for different scenarios future starts at 1
-                  n.scenarios=3,
-                  fut.surv.change=as.matrix(fut.surv.change[,2:4]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
-                  fut.fec.change=c(1,1,1)     ## future fecundity change - vector with one element for each scenario
+                  n.scenarios=1,
+                  fut.surv.change=as.matrix(fut.surv.change[,2]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
+                  fut.fec.change=c(1)     ## future fecundity change - vector with one element for each scenario
                   )
 
 
@@ -559,9 +538,9 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
                          mean.phi.juv = runif(1, 0.5, 0.9),
                          mean.p.ad = runif(2, 0.2, 1),
                          mean.p.juv = runif(2, 0, 1),
-                         Ntot.breed= c(runif(1, 4950, 5050),rep(NA,n.years-1)),
-                         JUV= c(rnorm(1, 246, 0.1),rep(NA,n.years-1)),
-                         N.atsea= c(rnorm(1, 530, 0.1),rep(NA,n.years-1)),
+                         Ntot.breed= c(runif(1, 4950, 5050),rep(NA,n.years.fec-1)), # TODO change this
+                         JUV= c(rnorm(1, 246, 0.1),rep(NA,n.years.fec-1)), # TODO change this
+                         N.atsea= c(rnorm(1, 530, 0.1),rep(NA,n.years.fec-1)), # TODO change this
                          # IM[,1,1]= c(rnorm(1, 324, 0.1),rep(NA,n.years-1)),
                          # IM[,2,1]= c(rnorm(1, 257, 0.1),rep(NA,n.years-1)),
                          # IM[,3,1]= c(rnorm(1, 462, 0.1),rep(NA,n.years-1)),
@@ -602,7 +581,7 @@ nc <- 3
 ns <- 20#0000 #longest
 
 AYNAipm <- run.jags(data=jags.data, inits=inits, parameters, 
-                    model="C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\AYNA_IPM_marray_age_recruit_immat_FINAL.jags",
+                    model="AYNA_IPM_marray_v1.jags",
                     n.chains = nc, thin = nt, burnin = nb, adapt = nad,sample = ns, 
                     method = "rjparallel") 
 
