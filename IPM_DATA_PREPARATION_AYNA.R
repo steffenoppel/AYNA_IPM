@@ -654,7 +654,7 @@ head(nhooks)
 nhooksSummaryJR<-nhooks %>%
   filter(lat5>(-40.1)) %>% filter(lat5<(-20.1)) %>%
   filter(lon5<20.1) %>% filter(lon5>(-15.1)) %>%
-  filter(yy>1978) %>%
+  filter(yy>1977) %>%
   group_by(yy) %>%
   summarise(N=sum(hooks))%>%
   mutate(Data="JoelRice") %>%
@@ -678,7 +678,7 @@ unique(fish$QuadID)
 unique(fish$Year)
 
 ## subset 1981-2019 data
-fish <- subset(fish, Year > 1978)
+fish <- subset(fish, Year > 1977)
 
 #### SUMMARISE LONGLINE EFFORT BY GRID CELL AND YEAR QUARTER
 
