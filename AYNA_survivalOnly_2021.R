@@ -147,6 +147,7 @@ model {
     }
     agebeta ~ dunif(0,1)    # Prior for shape of increase in juvenile recapture probability with age
     beta.ICCAT.ll.e ~ dnorm(0, 1)  # TODO - change precison?
+    beta.ICCAT.ll.mit ~ dnorm(0, 1)  # TODO - change precison?
     beta.Nam.ll.mit ~ dnorm(0, 1) # TODO - change precison?
     beta.SA.ll.mit ~ dnorm(0, 1) # TODO - change precison?
     beta.Uru.ll.mit ~ dnorm(0, 1) # TODO - change precison?
@@ -179,8 +180,8 @@ model {
     ## RANDOM TIME EFFECT ON SURVIVAL AND ADULT RECAPTURE
     # TODO - add additional covariates wrt to fishing effory and bycatch mitigation
     for (j in 1:(n.occasions-1)){
-      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
-      logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
+      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
+      logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
       eps.phi[j] ~ dnorm(0, tau.phi) 
       logit(p.ad[j])  <- mu.p.ad[goodyear[j]] + eps.p[j]    #### CAT HORSWILL SUGGESTED TO HAVE A CONTINUOUS EFFORT CORRECTION: mu.p.ad + beta.p.eff*goodyear[j] + eps.p[j]
       eps.p[j] ~ dnorm(0, tau.p)
@@ -271,7 +272,8 @@ jags.data <- list(marr.j = chick.marray,
                   #n.years.fec= n.years.fec,
                   
                   ### longline effort data
-                  ICCAT.ll.e = longline$n_hooks %>% as.numeric(), ,
+                  ICCAT.ll.e = longline$n_hooks %>% as.numeric(), 
+                  ICCAT.ll.mit = longline$n_hooks %>% as.numeric(), ,
                   Nam.ll.mit = longline$ %>% as.numeric(), , 
                   beta.SA.ll.mit = longline$ %>% as.numeric(),
                   beta.Uru.ll.mit = longline$ %>% as.numeric(), 
@@ -290,6 +292,7 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
                          mean.p.ad = c(runif(1, 0.05, 0.5), runif(1, 0.2, 1)),
                          mean.p.juv = runif(2, 0, 1),
                          beta.ICCAT.ll.e = rnorm(1, 0, 1),
+                         beta.ICCAT.ll.mit = rnorm(1, 0, 1),
                          beta.Nam.ll.mit = rnorm(1, 0, 1), 
                          beta.SA.ll.mit = rnorm(1, 0, 1), 
                          beta.Uru.ll.mit = rnorm(1, 0, 1)
@@ -310,7 +313,7 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
 
 # Parameters monitored
 parameters <- c("mean.phi.ad","mean.phi.juv", "mean.p.ad", 'mean.p.juv', "phi.ad", "phi.juv", 
-                "beta.ICCAT.ll.e", "beta.Nam.ll.mit", "beta.SA.ll.mit", "beta.Uru.ll.mit")
+                "beta.ICCAT.ll.e", "beta.ICCAT.ll.mit", "beta.Nam.ll.mit", "beta.SA.ll.mit", "beta.Uru.ll.mit")
 
 # monitor annual survival values and plot against whether it's a good or bad year
 
