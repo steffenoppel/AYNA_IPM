@@ -423,10 +423,11 @@ head(contacts)
 # 1 represents resighted or recaptured, 2 represents dead recovery, 0 not observed
 AYNA_CHICK<- contacts %>% mutate(count=if_else(Contact_Type == "Recovery", 2, 1)) %>% # AEB changed this 11 Nov 2021 to account for dead recoveries
   filter(FIRST_AGE %in% c("Chick","Fledgling")) %>%
+  filter(Contact_Type != "Recovery") %>% 
   group_by(BirdID,Contact_Season) %>%
   summarise(STATE=max(count)) %>% 
   spread(key=Contact_Season, value=STATE, fill=0) %>% 
-  arrange(BirdID)
+  arrange(BirdID) 
 dim(AYNA_CHICK) 
 which(AYNA_CHICK == 2, arr.ind = T)
 
@@ -463,6 +464,7 @@ phi.juv.possible$JuvSurv
 
 
 AYNA_AD<- contacts %>% mutate(count=if_else(Contact_Type == "Recovery", 2, 1)) %>% # AEB changed this 11 Nov 2021 to account for dead recoveries
+  filter(Contact_Type != "Recovery") %>% 
   group_by(BirdID,FIRST_AGE,Contact_Season) %>%
   summarise(STATE=max(count)) %>%
   spread(key=Contact_Season, value=STATE, fill=0) %>%
