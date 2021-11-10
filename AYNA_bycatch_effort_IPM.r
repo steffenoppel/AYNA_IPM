@@ -103,7 +103,7 @@ longline<-ICCAT %>% mutate(Eff=ifelse(Time==1,nhooks*AYNA1,
   mutate(mitigation=c(rep(1,13),0.8,0.6,0.4,0.2,0.1)) %>%   ### insert proportion of ships not using any mitigation measures
   mutate(MitEFF=EFF*mitigation)
 
-fwrite(longline,"ICCAT_AYNA_overlay_nhooks_2000_2017.csv")
+#fwrite(longline,"ICCAT_AYNA_overlay_nhooks_2000_2017.csv")
 
 
 #### FIXED WITH QuadID==2

@@ -595,18 +595,10 @@ contacts %>% filter(BirdID %in% unique(DOUBLE_CHECK$BirdID)) %>%
 
 
 
-#############################################################################
-##   11. SAVE WORKSPACE ###############
-#############################################################################
-setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
-save.image("AYNA_IPM_input.marray.RData")
-
-
-
 
 
 #############################################################################
-##   12. ADD ICCAT FISH EFFORT DATA ###############
+##   11. ADD ICCAT FISH EFFORT DATA ###############
 #############################################################################
 
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
@@ -614,33 +606,54 @@ setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
 # Load necessary library
 library(rgdal)
 library(maptools)
+library(raster)
+library(tidyverse)
+library(data.table)
+library(sf)
+filter<-dplyr::filter
+select<-dplyr::select
 
-# Set Spatial Projections
-projection_out = "+proj=laea +lat_0=-90 +lon_0=-38.05 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"   
-projection_in <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"   
+
+#########################################################################
+# LOAD FISHERY DATA PROVIDED BY JOEL RICE
+#########################################################################
+try(setwd("C:\\STEFFEN\\RSPB\\Marine\\Bycatch"), silent=T)
+nhooks<-fread("SH_longline_effort_30MAY_2019.csv")
+head(nhooks)
+nhooksSummaryJR<-nhooks %>%
+  filter(lat5>(-40.1)) %>% filter(lat5<(-20.1)) %>%
+  filter(lon5<20.1) %>% filter(lon5>(-15.1)) %>%
+  filter(yy>1978) %>%
+  group_by(yy) %>%
+  summarise(N=sum(hooks))%>%
+  mutate(Data="JoelRice") %>%
+  rename(Year=yy)
 
 
-
-
-## Fishing effort
-
+# #########################################################################
+# # LOAD FISHERY DATA FROM ICCAT (n hooks 2000 - 2017)
+# #########################################################################
+# ## this CSV file is based on a query that uses
+#  QuadID==2 for SE Atlantic
+#  QuadID==3 for SW Atlantic!
+# ## see https://www.iccat.int/Data/t2ce-ENG.pdf
+#### MODIFY nhooks to match coordinates and time periods
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
 fish <- read.csv("ICCAT_longline_effort_data2021.csv")
 head(fish)
 unique(fish$TimePeriodID) ### 1-12 signify months, 13-16 quarters, 17 is for whole year
 unique(fish$QuadID)
 unique(fish$Year)
 
-## subset 1981-2014 data
+## subset 1981-2019 data
 fish <- subset(fish, Year > 1978)
-
-
 
 #### SUMMARISE LONGLINE EFFORT BY GRID CELL AND YEAR QUARTER
 
 LL_effort<- fish %>% 
   mutate(Lat=Lat*(-1), Lon=ifelse(QuadID==2,Lon,Lon*(-1))) %>% ## modify lats and longs for west and south
   mutate(quarter=if_else(TimePeriodID %in% c(1, 2, 3),"Q1",ifelse(
-  TimePeriodID %in% c(4, 5, 6),"Q2",ifelse(TimePeriodID %in% c(7, 8, 9),"Q3",ifelse(TimePeriodID %in% c(10, 11, 12),"Q4","ALL"))))) %>%
+    TimePeriodID %in% c(4, 5, 6),"Q2",ifelse(TimePeriodID %in% c(7, 8, 9),"Q3",ifelse(TimePeriodID %in% c(10, 11, 12),"Q4","ALL"))))) %>%
   filter(Eff1Type=="NO.HOOKS") %>%
   group_by(Year, quarter,Lat,Lon) %>%
   summarise(TotEff=sum(Effort))
@@ -655,65 +668,85 @@ LLeff_replace<-LL_effort %>% filter(quarter=="ALL") %>%
   bind_rows(LL_effort %>% filter(quarter=="ALL") %>%  mutate(quarter="Q4", TotEff=TotEff/4))
 
 ## combine the two
-LL_effort<- LL_effort %>% filter(quarter!="ALL") %>% bind_rows(LLeff_replace)
+ICCAT<- LL_effort %>% filter(quarter!="ALL") %>% bind_rows(LLeff_replace)
 dim(LL_effort)
 
-LL_effSP<-SpatialPointsDataFrame(coords=SpatialPoints(LL_effort[,4:3], proj4string=CRS(projection_in)), data=LL_effort)
-LL_effSPlaea <- spTransform(LL_effSP,CRS(projection_out))
+## summary for comparison with other datasets
+nhooksSummaryICCAT<-ICCAT %>%
+  #filter(Year>1999 & Year<2018) %>%
+  group_by(Year) %>%
+  summarise(N=sum(TotEff)) %>%
+  mutate(Data="ICCAT")
+
+
+#### READ IN AYNA DISTRIBUTION
+AYNAQ1<-raster("Atlantic Yellow-nosed Albatross_Gough_Q1.tif")
+AYNAQ2<-raster("Atlantic Yellow-nosed Albatross_Gough_Q2.tif")
+AYNAQ3<-raster("Atlantic Yellow-nosed Albatross_Gough_Q3.tif")
+AYNAQ4<-raster("Atlantic Yellow-nosed Albatross_Gough_Q4.tif")
+
+
+#### NEED TO SPATIALLY EXTRACT FISH EFFORT DATA FROM THESE RASTERS
+
+sfICCAT<-st_as_sf(ICCAT, coords = c('Lon', 'Lat'), crs = 4326)
+spICCAT<-as(sfICCAT,'Spatial')
+ICCAT$AYNA1<-raster::extract(AYNAQ1,spICCAT)
+ICCAT$AYNA2<-raster::extract(AYNAQ2,spICCAT)
+ICCAT$AYNA3<-raster::extract(AYNAQ3,spICCAT)
+ICCAT$AYNA4<-raster::extract(AYNAQ4,spICCAT)
+
+
+### MULTIPLY EFFORT AND DISTRIBUTION DATA AND CALCULATE FISHING OVERLAP INDEX ####
+longline<-ICCAT %>% mutate(Eff=ifelse(quarter=="Q1",TotEff*AYNA1,
+                                      ifelse(quarter=="Q2",TotEff*AYNA2,
+                                             ifelse(quarter=="Q3",TotEff*AYNA3,TotEff*AYNA4)))) %>%
+  group_by(Year) %>%
+  summarise(n_hooks=sum(Eff, na.rm=T)) #%>%
+  #mutate(mitigation=c(rep(1,13),0.8,0.6,0.4,0.2,0.1)) %>%   ### insert proportion of ships not using any mitigation measures
+  #mutate(MitEFF=EFF*mitigation)
+
+fwrite(longline,"ICCAT_AYNA_overlay_nhooks_2000_2017.csv")
+
+
+# LOAD FISHERY DATA PROVIDED BY NAMIBIAN FISHERIES DEPARTMENT
+
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
+nhooks<-fread("Namibia_DemersalLongLine.csv")
+head(nhooks)
+nhooksSummaryNAM<-nhooks %>%
+  #filter(Year>1999 & Year<2018) %>%
+  group_by(Year) %>%
+  summarise(N=sum(HOOKS_SET)) %>%
+  mutate(Data="Namibia")
 
 
 
-#### READ IN YNAL DISTRIBUTION SHAPEFILES
+#########################################################################
+### PLOT THE THREE DATASETS TOGETHER ON ONE GRAPH
+#########################################################################
+plotdat<-bind_rows(nhooksSummaryNAM,nhooksSummaryJR,nhooksSummaryICCAT) %>%
+  group_by(Data) %>%
+  mutate(scaledEff=scale(N)) %>%
+  filter(Year>start)
 
-setwd("D:\\STEFFEN\\RSPB\\UKOT\\Gough\\DATA\\Tracking_data\\AYNA_distribution_GIS")
-shplist<-list.files(pattern = "\\.shp$")
-
-Q1poly<-readShapePoly("HR95_AYN_Q1.shp", proj4string=CRS(projection_out))                  #reads the polygon layer for quarter 1
-Q2poly<-readShapePoly("HR95_AYN_Q2.shp", proj4string=CRS(projection_out))                  #reads the polygon layer for quarter 2
-Q3poly<-readShapePoly("HR95_AYN_Q3.shp", proj4string=CRS(projection_out))                  #reads the polygon layer for quarter 3
-Q4poly<-readShapePoly("HR95_AYN_Q4.shp", proj4string=CRS(projection_out))                  #reads the polygon layer for quarter 4
-
-
-
-#### OVERLAY DISTRIBUTION WITH LONGLINE EFFORT TO RETAIN ONLY GRIDS IN AYNA FORAGING AREA
-
-LL_effSPQ1<-LL_effSPlaea %over% Q1poly
-Q1eff<-LL_effSPlaea@data[!is.na(LL_effSPQ1$area),]
-Q1eff<-Q1eff[Q1eff$quarter=="Q1",]
-head(Q1eff)
-
-LL_effSPQ2<-LL_effSPlaea %over% Q2poly
-Q2eff<-LL_effSPlaea@data[!is.na(LL_effSPQ2$area),]
-Q2eff<-Q2eff[Q2eff$quarter=="Q2",]
-head(Q2eff)
-
-LL_effSPQ3<-LL_effSPlaea %over% Q3poly
-Q3eff<-LL_effSPlaea@data[!is.na(LL_effSPQ3$area),]
-Q3eff<-Q3eff[Q3eff$quarter=="Q3",]
-head(Q3eff)
-
-LL_effSPQ4<-LL_effSPlaea %over% Q4poly
-Q4eff<-LL_effSPlaea@data[!is.na(LL_effSPQ4$area),]
-Q4eff<-Q4eff[Q4eff$quarter=="Q4",]
-head(Q4eff)
+ggplot(plotdat) +
+  geom_line(aes(x=Year, y=scaledEff, col=Data), size=2) +
+  #scale_x_continuous(name="Year", limits=c(1979,2019), breaks=seq(1979,2019,5)) +
+  #scale_y_continuous(name="Longline fishing effort (standardized)", limits=c(-3,3), breaks=seq(-3,3,0.5)) +
+  theme(panel.background=element_rect(fill="white", colour="black"),
+        axis.text.y=element_text(size=18, color="black"),
+        axis.text.x=element_text(size=14, color="black", angle=45, vjust=0.5),
+        axis.title=element_text(size=20),
+        strip.text.x=element_text(size=18, color="black"),
+        strip.background=element_rect(fill="white", colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank())
 
 
 
+########## PLOT POP SIZE AND ICCAT FISHING EFFORT ######################
 
-
-
-########## EXTRACT TOTAL NUMBER OF HOOKS PER YEAR IN 95% UD OF AYNA ######################
-
-Ann_LL_eff<-bind_rows(Q1eff,Q2eff,Q3eff,Q4eff) %>% group_by(Year) %>%
-  summarise(n_hooks=sum(TotEff)/1000000)
-
-### Standardize hooks because JAGS will crash with large numbers
-meaneff<-mean(Ann_LL_eff$n_hooks)
-sdeff<-sd(Ann_LL_eff$n_hooks)
-Ann_LL_eff$EFF_stand<-(Ann_LL_eff$n_hooks-meaneff)/sdeff
-
-
-### CREATE PLOT FOR AYNA DATA AND LONGLINE EFFORT
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
 
 counts %>% filter(Species==SP) %>%
@@ -728,18 +761,30 @@ counts %>% filter(Species==SP) %>%
   ggplot(aes(x=Year,y=N)) +
   geom_point(size=2, color='green')+
   geom_smooth(color='green', fill='green',alpha=0.2)+
-  geom_point(data=Ann_LL_eff, aes(x=Year, y=n_hooks),color='red', shape=16, size=2)+
-  geom_smooth(data=Ann_LL_eff, aes(x=Year, y=n_hooks),color='red', fill='red',alpha=0.2)+
-  
-  theme(panel.background=element_rect(fill="white", colour="black"), 
-        axis.text=element_text(size=18, color="black"), 
-        axis.title=element_text(size=20), 
-        strip.text.x=element_text(size=18, color="black"), 
-        strip.background=element_rect(fill="white", colour="black"), 
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), 
+  geom_point(data=longline, aes(x=Year, y=n_hooks/1000000000),color='red', shape=16, size=2)+
+  geom_smooth(data=longline, aes(x=Year, y=n_hooks/1000000000),color='red', fill='red',alpha=0.2)+
+
+  theme(panel.background=element_rect(fill="white", colour="black"),
+        axis.text=element_text(size=18, color="black"),
+        axis.title=element_text(size=20),
+        strip.text.x=element_text(size=18, color="black"),
+        strip.background=element_rect(fill="white", colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         panel.border = element_blank()) +
-  ylab("Million longline hooks in AYNA distribution") +
+  ylab("Billion longline hook hours in AYNA distribution") +
   xlab("Year")
 
 ggsave("AYNA_ICCAT_trend_plot.jpg", width=12, height=9)
+
+
+
+
+
+#############################################################################
+##   12. SAVE WORKSPACE ###############
+#############################################################################
+setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
+save.image("AYNA_IPM_input.marray.RData")
+
+
