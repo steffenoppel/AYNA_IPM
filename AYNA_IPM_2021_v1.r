@@ -193,8 +193,9 @@ model {
     tau.phi <- pow(sigma.phi, -2)
     
     ## RANDOM TIME EFFECT ON SURVIVAL AND ADULT RECAPTURE
+
     for (j in 1:(n.occasions-1)){
-      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.fe*longline[j]
+      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.fe*longline[j] 
       logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.fe*longline[j]
       eps.phi[j] ~ dnorm(0, tau.phi) 
       logit(p.ad[j])  <- mu.p.ad[goodyear[j]] + eps.p[j]    #### CAT HORSWILL SUGGESTED TO HAVE A CONTINUOUS EFFORT CORRECTION: mu.p.ad + beta.p.eff*goodyear[j] + eps.p[j]
