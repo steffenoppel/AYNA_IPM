@@ -654,7 +654,7 @@ head(nhooks)
 nhooksSummaryJR<-nhooks %>%
   filter(lat5>(-40.1)) %>% filter(lat5<(-20.1)) %>%
   filter(lon5<20.1) %>% filter(lon5>(-15.1)) %>%
-  filter(yy>1978) %>%
+  filter(yy>1977) %>%
   group_by(yy) %>%
   summarise(N=sum(hooks))%>%
   mutate(Data="JoelRice") %>%
@@ -671,13 +671,14 @@ nhooksSummaryJR<-nhooks %>%
 #### MODIFY nhooks to match coordinates and time periods
 try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
 fish <- read.csv("ICCAT_longline_effort_data2021.csv")
+mitig <- read.csv("AYNA_bycatch_mitigation_props_perfleet.csv")
 head(fish)
 unique(fish$TimePeriodID) ### 1-12 signify months, 13-16 quarters, 17 is for whole year
 unique(fish$QuadID)
 unique(fish$Year)
 
 ## subset 1981-2019 data
-fish <- subset(fish, Year > 1978)
+fish <- subset(fish, Year > 1977)
 
 #### SUMMARISE LONGLINE EFFORT BY GRID CELL AND YEAR QUARTER
 
@@ -732,11 +733,10 @@ longline<-ICCAT %>% mutate(Eff=ifelse(quarter=="Q1",TotEff*AYNA1,
                                       ifelse(quarter=="Q2",TotEff*AYNA2,
                                              ifelse(quarter=="Q3",TotEff*AYNA3,TotEff*AYNA4)))) %>%
   group_by(Year) %>%
-  summarise(n_hooks=sum(Eff, na.rm=T)) #%>%
-  #mutate(mitigation=c(rep(1,13),0.8,0.6,0.4,0.2,0.1)) %>%   ### insert proportion of ships not using any mitigation measures
-  #mutate(MitEFF=EFF*mitigation)
+  summarise(n_hooks=sum(Eff, na.rm=T)) %>%
+  full_join(mitig, by="Year")
 
-fwrite(longline,"ICCAT_AYNA_overlay_nhooks_2000_2017.csv")
+#fwrite(longline,"ICCAT_AYNA_overlay_nhooks_2000_2021.csv")
 
 
 # LOAD FISHERY DATA PROVIDED BY NAMIBIAN FISHERIES DEPARTMENT
