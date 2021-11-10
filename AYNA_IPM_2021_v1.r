@@ -81,6 +81,15 @@ POPSIZE$Year
 OFFSET<-min(which(!is.na(match(as.numeric(substr(names(AYNA_CHICK)[2:44],1,4)),POPSIZE$Year))))
 substr(names(AYNA_CHICK),1,4)[OFFSET+1]
 
+### SCALE NUMBER OF HOOKS
+
+longline <- longline %>% mutate(n_hooks = scale(n_hooks)) 
+ave.since.2010 <- longline %>% filter(Year > 2010) %>% summarise(mean(n_hooks)) %>% as.numeric
+longline <- longline %>% 
+  add_row(Year = 2020, n_hooks = ave.since.2010) %>% 
+  add_row(Year = 2021, n_hooks = ave.since.2010)
+longline
+
 #########################################################################
 # SPECIFY FUTURE DECREASE IN SURVIVAL
 #########################################################################
@@ -156,6 +165,7 @@ model {
       mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
     }
     agebeta ~ dunif(0,1)    # Prior for shape of increase in juvenile recapture probability with age
+    beta.fe ~ dnorm(0, 1)  # TODO - change precison?
     
     ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY OF JUVENILES
     for (t in 1:(n.occasions-1)){
@@ -184,8 +194,8 @@ model {
     
     ## RANDOM TIME EFFECT ON SURVIVAL AND ADULT RECAPTURE
     for (j in 1:(n.occasions-1)){
-      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j]
-      logit(phi.ad[j]) <- mu.ad + eps.phi[j]
+      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.fe*longline[j]
+      logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.fe*longline[j]
       eps.phi[j] ~ dnorm(0, tau.phi) 
       logit(p.ad[j])  <- mu.p.ad[goodyear[j]] + eps.p[j]    #### CAT HORSWILL SUGGESTED TO HAVE A CONTINUOUS EFFORT CORRECTION: mu.p.ad + beta.p.eff*goodyear[j] + eps.p[j]
       eps.p[j] ~ dnorm(0, tau.p)
@@ -522,7 +532,7 @@ jags.data <- list(marr.j = chick.marray,
                   n.years.fec= n.years.fec,
                   
                   ### longline effort data
-                  #longline=longlineICCAT,
+                  longline=longline$n_hooks %>% as.numeric(),
                   
                   # ### FUTURE PROJECTION
                   FUT.YEAR=30,  ### for different scenarios future starts at 1
@@ -540,6 +550,7 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
                          Ntot.breed= c(runif(1, 4950, 5050),rep(NA,n.years.fec-1)), # TODO change this
                          JUV= c(rnorm(1, 246, 0.1),rep(NA,n.years.fec-1)), # TODO change this
                          N.atsea= c(rnorm(1, 530, 0.1),rep(NA,n.years.fec-1)), # TODO change this
+                         beta.fe = rnorm(1, 0, 1),
                          # IM[,1,1]= c(rnorm(1, 324, 0.1),rep(NA,n.years-1)),
                          # IM[,2,1]= c(rnorm(1, 257, 0.1),rep(NA,n.years-1)),
                          # IM[,3,1]= c(rnorm(1, 462, 0.1),rep(NA,n.years-1)),
@@ -552,8 +563,8 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
 
 # Parameters monitored
 parameters <- c("mean.phi.ad","mean.phi.juv","mean.fec","mean.propensity",
-                "mean.recruit","pop.growth.rate","fut.growth.rate",
-                "agebeta","Ntot","Ntot.f","phi.ad","phi.juv","Ntot.breed",   ## added Ntot.breed to provide better contrast with Ntot?
+                "mean.recruit","pop.growth.rate","fut.growth.rate", 
+                "agebeta","Ntot","Ntot.f","phi.ad","phi.juv", "beta.fe", "Ntot.breed",   ## added Ntot.breed to provide better contrast with Ntot?
                 #new
                 "ann.fec", "sigma.obs", "mean.p.juv","mean.p.ad",
                 "mean.p.sd","sigma.p","sigma.phi")
