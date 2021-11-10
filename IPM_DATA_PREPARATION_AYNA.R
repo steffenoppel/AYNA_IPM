@@ -286,19 +286,42 @@ contacts %>% filter(ContAge==1)
 ##   7. REMOVE BIRDS FROM OUTSIDE THE STUDY AREAS AND BEFORE 1978  ###############
 ##############################################################################################
 unique(contacts$Location)
-########## CREATE A LOOP OVER EVERY BIRD TO CHECK WHETHER THEY WERE EVER RECORDED IN STUDY AREAS
 STUDY_AREAS<- c("Area 1","Not Specified","Between the base and seal beach","Area 8","Area 3","Area 3/10","Area 10", "Prion Cave","Tumbledown")
-allbirds<-unique(contacts$BirdID)
-fixed_contacts<-data.frame()
 
-for (xid in allbirds){
-  xcont<-contacts %>% filter(BirdID==xid) %>% arrange(Date_Time)
-  xcont$INSIDE<-ifelse(xcont$Location %in% STUDY_AREAS,1,0)
-  xcont$INSIDE<-ifelse(xcont$Location == "Not Specified" & xcont$Contact_Year>2014,1,xcont$INSIDE) 
-  if(sum(xcont$INSIDE, na.rm=T)>0){fixed_contacts<-bind_rows(fixed_contacts ,xcont)}
-}
-dim(contacts)
-dim(fixed_contacts)
+##### NUMBER OF CONTACTS OUTSIDE FOCAL STUDY AREAS ###
+contacts %>% filter(!(Location %in% STUDY_AREAS)) %>% filter(Contact_Type!="Capture") %>% group_by(FIRST_AGE,Location) %>%
+  summarise(n_birds=length(unique(BirdID)))
+
+##### INDIVIDUALS CAPTURED OUTSIDE STUDY AREAS ###
+OUTMARKED<-contacts %>% filter(!(Location %in% STUDY_AREAS)) %>% filter(Contact_Type=="Capture") %>% group_by(BirdID,FIRST_AGE,Location) %>%
+  summarise(n_birds=length(unique(BirdID)))
+
+contacts %>% filter(BirdID %in% OUTMARKED$BirdID) %>% group_by(BirdID,Location) %>%
+  summarise(n_obs=length(unique(ContactID))) %>%
+  spread(key=Location, value=n_obs) %>%
+  print(n=30)
+
+# checked individuals with metal ring 883884 - they were only recorded once and can be excluded as birds from outside study area
+## GO103015 (858922)can be included because it is observed regularly in styudy area
+OUTMARKED<-OUTMARKED %>% filter(BirdID!="GO103015")
+
+##### NUMBER OF DEAD RECOVERIES
+contacts %>% filter(Contact_Type=="Recovery")
+
+
+########## CREATE A LOOP OVER EVERY BIRD TO CHECK WHETHER THEY WERE EVER RECORDED IN STUDY AREAS
+# allbirds<-unique(contacts$BirdID)
+# fixed_contacts<-data.frame()
+# 
+# for (xid in allbirds){
+#   xcont<-contacts %>% filter(BirdID==xid) %>% arrange(Date_Time)
+#   xcont$INSIDE<-ifelse(xcont$Location %in% STUDY_AREAS,1,0)
+#   xcont$INSIDE<-ifelse(xcont$Location == "Not Specified" & xcont$Contact_Year>2014,1,xcont$INSIDE) 
+#   if(sum(xcont$INSIDE, na.rm=T)>0){fixed_contacts<-bind_rows(fixed_contacts ,xcont)}
+# }
+# dim(contacts)
+# dim(fixed_contacts)
+fixed_contacts<-contacts %>% filter(!(BirdID %in% OUTMARKED$BirdID))
 length(unique(fixed_contacts$BirdID))
 length(allbirds)
 
