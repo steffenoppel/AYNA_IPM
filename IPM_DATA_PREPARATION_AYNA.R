@@ -397,13 +397,18 @@ ggplot() + geom_bar(aes(x=Contact_Year,y=prop.seen, fill=Effort), stat="identity
 head(contacts)
 
 ### SIMPLE BINARY ENCOUNTER HISTORY FOR CHICKS AND ADULTS
-AYNA_CHICK<- contacts %>% mutate(count=1) %>%
+# 1 represents resighted or recaptured, 2 represents dead recovery, 0 not observed
+AYNA_CHICK<- contacts %>% mutate(count=if_else(Contact_Type == "Recovery", 2, 1)) %>% # AEB changed this 11 Nov 2021 to account for dead recoveries
   filter(FIRST_AGE %in% c("Chick","Fledgling")) %>%
   group_by(BirdID,Contact_Season) %>%
-  summarise(STATE=max(count)) %>%
-  spread(key=Contact_Season, value=STATE, fill=0) %>%
+  summarise(STATE=max(count)) %>% 
+  spread(key=Contact_Season, value=STATE, fill=0) %>% 
   arrange(BirdID)
 dim(AYNA_CHICK) 
+which(AYNA_CHICK == 2, arr.ind = T)
+
+## DEAD RECOVERIES ARE KNOWN ZEROS IN ENCOUNTER HISTORY
+
 
 ## THIS MATRIX MUST BE PADDED BY YEARS WITH 0 CHICKS RINGED
 colnames(AYNA_CHICK)[-1]
@@ -427,14 +432,14 @@ dim(AYNA_CHICK)
 
 
 ### identify number of chicks ringed every year
-phi.juv.possible<-AYNA_CHICK %>% gather(key='Year', value='count',-BirdID) %>% group_by(Year) %>% summarise(N=sum(count)) %>%
+phi.juv.possible<-AYNA_CHICK %>% gather(key='Year', value='count',-BirdID) %>% group_by(Year) %>% summarise(N=sum(count == 1)) %>% # AEB changed 11 Nov 2021 - effort only matters for live birds
   mutate(JuvSurv=if_else(N<25,0,1)) %>%
   mutate(JuvSurv=if_else(Year>2018,0,JuvSurv)) ### not possible yet to estimate juvenile survival after 2018
 
 phi.juv.possible$JuvSurv
 
 
-AYNA_AD<- contacts %>% mutate(count=1) %>%
+AYNA_AD<- contacts %>% mutate(count=if_else(Contact_Type == "Recovery", 2, 1)) %>% # AEB changed this 11 Nov 2021 to account for dead recoveries
   group_by(BirdID,FIRST_AGE,Contact_Season) %>%
   summarise(STATE=max(count)) %>%
   spread(key=Contact_Season, value=STATE, fill=0) %>%
@@ -443,6 +448,7 @@ AYNA_AD<- contacts %>% mutate(count=1) %>%
   select(-FIRST_AGE) %>%
   arrange(BirdID)
 dim(AYNA_AD)
+which(AYNA_AD == 2, arr.ind = T)
 
 colnames(AYNA_AD)[-1]
 length(colnames(AYNA_AD)[-1])
