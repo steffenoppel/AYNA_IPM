@@ -99,10 +99,9 @@ fut.surv.change<- expand.grid(PROJECTION.years,dec.surv,lag.time) %>%
 ### SCALE NUMBER OF HOOKS
 
 longline <- longline %>% mutate(n_hooks = scale(n_hooks)) 
-ave.since.2010 <- longline %>% filter(Year > 2010) %>% summarise(mean(n_hooks)) %>% as.numeric
+ave.since.2010 <- longline %>% filter(Year > 2009 & Year < 2020) %>% select(2) %>% unlist() %>% mean() 
 longline <- longline %>% 
-  add_row(Year = 2020, n_hooks = ave.since.2010) %>% 
-  add_row(Year = 2021, n_hooks = ave.since.2010)
+  mutate(n_hooks = if_else(Year == 2020 | Year == 2021, ave.since.2010, n_hooks))
 longline
 
 
