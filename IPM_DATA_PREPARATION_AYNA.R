@@ -299,8 +299,8 @@ n_resights_summary<-contacts %>% group_by(BirdID,FIRST_YEAR,FIRST_AGE) %>%
   summarise(n=length(unique(BirdID)),min=min(n_seasons),max=max(n_seasons), median=median(n_seasons))
 print(n_resights_summary,n=15)
 
-### START IN SEASON 1982-83 - first solid data in database
-start<-1982  ## for CMR data
+### START IN SEASON 1982-83 - first solid data in database - but all chicks vanished, hence shifted to 1985
+start<-1985  ## for CMR data
 
 
 ##### NUMBER OF CONTACTS OUTSIDE FOCAL STUDY AREAS ###
@@ -349,14 +349,15 @@ dim(fixed_contacts)
 ### REMOVE RECORDS FROM BEFORE THE SET START YEAR AND BIRDS FIRST MARKED IN LAST YEAR
 unique(fixed_contacts$Contact_Year)
 contacts<-fixed_contacts %>%
-  filter(Contact_Year>=start)
+  #filter(Contact_Year>=start) %>%
+  filter(Contact_Year>= ifelse(AGE==0,start+1,start)) #necessary after 1982 when chicks are ringed in year after adults (same season)
 dim(contacts)
 unique(contacts$FIRST_AGE)
 
 sort(unique(contacts$Contact_Season))
 
-all.seasons <- paste(1982:2021, "-", 
-                     c(83:99, 
+all.seasons <- paste(1985:2021, "-", 
+                     c(86:99, 
                        "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", 
                        10:22), 
                      sep = "")
@@ -744,10 +745,11 @@ ICCAT$AYNA3<-raster::extract(AYNAQ3,spICCAT)
 ICCAT$AYNA4<-raster::extract(AYNAQ4,spICCAT)
 
 
-### MULTIPLY EFFORT AND DISTRIBUTION DATA AND CALCULATE FISHING OVERLAP INDEX ####
-longline<-ICCAT %>% mutate(Eff=ifelse(quarter=="Q1",TotEff*AYNA1,
-                                      ifelse(quarter=="Q2",TotEff*AYNA2,
-                                             ifelse(quarter=="Q3",TotEff*AYNA3,TotEff*AYNA4)))) %>%
+### EXTRACT EFFORT AND DISTRIBUTION DATA AND CALCULATE FISHING OVERLAP INDEX ####
+## Richard Phillips recommended to NOT multiply effort and bird usage
+longline<-ICCAT %>% mutate(Eff=ifelse(quarter=="Q1",ifelse(is.na(AYNA1),0,TotEff),
+                                      ifelse(quarter=="Q2",ifelse(is.na(AYNA2),0,TotEff),
+                                             ifelse(quarter=="Q3",ifelse(is.na(AYNA3),0,TotEff),ifelse(is.na(AYNA4),0,TotEff))))) %>%
   group_by(Year) %>%
   summarise(n_hooks=sum(Eff, na.rm=T)) %>%
   full_join(mitig, by="Year")
@@ -808,8 +810,8 @@ counts %>% filter(Species==SP) %>%
   ggplot(aes(x=Year,y=N)) +
   geom_point(size=2, color='green')+
   geom_smooth(color='green', fill='green',alpha=0.2)+
-  geom_point(data=longline, aes(x=Year, y=n_hooks/1000000000),color='red', shape=16, size=2)+
-  geom_smooth(data=longline, aes(x=Year, y=n_hooks/1000000000),color='red', fill='red',alpha=0.2)+
+  geom_point(data=longline, aes(x=Year, y=n_hooks/5000000),color='red', shape=16, size=2)+
+  geom_smooth(data=longline, aes(x=Year, y=n_hooks/5000000),color='red', fill='red',alpha=0.2)+
 
   theme(panel.background=element_rect(fill="white", colour="black"),
         axis.text=element_text(size=18, color="black"),
@@ -819,7 +821,7 @@ counts %>% filter(Species==SP) %>%
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank()) +
-  ylab("Billion longline hook hours in AYNA distribution") +
+  ylab("Million longline hooks in AYNA distribution") +
   xlab("Year")
 
 ggsave("AYNA_ICCAT_trend_plot.jpg", width=12, height=9)
@@ -834,9 +836,9 @@ ggsave("AYNA_ICCAT_trend_plot.jpg", width=12, height=9)
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
 detach("package:raster", unload=TRUE)
 detach("package:maptools", unload=TRUE)
-detach("package:sp", unload=TRUE)
 detach("package:rgdal", unload=TRUE)
 detach("package:sf", unload=TRUE)
+detach("package:sp", unload=TRUE)
 save.image("AYNA_IPM_input.marray.RData")
 
 
