@@ -25,7 +25,6 @@ select<-dplyr::select
 #### MODIFY nhooks to match coordinates and time periods
 try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
 fish <- read.csv("ICCAT_longline_effort_data2021.csv")
-mitig <- read.csv("AYNA_bycatch_mitigation_props_perfleet.csv")
 head(fish)
 unique(fish$TimePeriodID) ### 1-12 signify months, 13-16 quarters, 17 is for whole year
 unique(fish$QuadID)
@@ -82,14 +81,12 @@ ICCAT$AYNA3<-raster::extract(AYNAQ3,spICCAT)
 ICCAT$AYNA4<-raster::extract(AYNAQ4,spICCAT)
 
 
-### MULTIPLY EFFORT AND DISTRIBUTION DATA AND CALCULATE FISHING OVERLAP INDEX ####
-longline<-ICCAT %>% mutate(Eff=ifelse(quarter=="Q1",TotEff*AYNA1,
-                                      ifelse(quarter=="Q2",TotEff*AYNA2,
-                                             ifelse(quarter=="Q3",TotEff*AYNA3,TotEff*AYNA4)))) %>%
+### EXTRACT EFFORT AND DISTRIBUTION DATA AND CALCULATE FISHING OVERLAP INDEX ####
+longline<-ICCAT %>% mutate(Eff=ifelse(quarter=="Q1",ifelse(is.na(AYNA1),0,TotEff),
+                                      ifelse(quarter=="Q2",ifelse(is.na(AYNA2),0,TotEff),
+                                             ifelse(quarter=="Q3",ifelse(is.na(AYNA3),0,TotEff),ifelse(is.na(AYNA4),0,TotEff))))) %>%
   group_by(Year) %>%
-  summarise(n_hooks=sum(Eff, na.rm=T)) %>%
-  full_join(mitig, by="Year")
-
+  summarise(n_hooks=sum(Eff, na.rm=T))
 
 
 
@@ -97,16 +94,23 @@ longline<-ICCAT %>% mutate(Eff=ifelse(quarter=="Q1",TotEff*AYNA1,
 # #########################################################################
 # # LOAD FISHING EFFORT DATA FROM GLOBAL FISHING WATCH
 # #########################################################################
-try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData\\GFW"), silent=T)
+try(setwd("C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\GFW"), silent=T)
 GFWzips<-list.files(pattern="zip")
-out<-data.frame()
 
-for (fp in 1:length(GFWzips)){
-  unzip(GFWzips[fp])
-}
+#for (fp in 1:length(GFWzips)){
+#  unzip(GFWzips[fp])
+#}
+
+### LOOP THROUGH EACH DIRECTORY AFTER REMOVING ALL THE ZIP FILES
+try(setwd("C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\GFW"), silent=T)
+out<-data.frame()
+GFWdirs<-list.files()
+
+for (fd in 1:length(GFWdirs)){
+  setwd(sprintf("C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\GFW\\%s",GFWdirs[fd]))
 
   #### read and combine data for a single year
-  
+
   GFWcsvs<-list.files(pattern = "\\.csv$", full.names = TRUE)
   GFWcsvs<-GFWcsvs[1:365]
   
@@ -119,39 +123,45 @@ for (fp in 1:length(GFWzips)){
     if(unique(x$quarter)=="Q2"){x$AYNA<-raster::extract(AYNAQ2,sfx)}
     if(unique(x$quarter)=="Q3"){x$AYNA<-raster::extract(AYNAQ3,sfx)}
     if(unique(x$quarter)=="Q4"){x$AYNA<-raster::extract(AYNAQ4,sfx)}
-    xout<-x %>% filter(!is.na(AYNA))
+    xout<-x %>% filter(!is.na(AYNA)) %>% mutate(year=year(date)) %>%
+	group_by(date,flag,geartype) %>%
+	summarise(effort=sum(hours))
     out<-rbind(out,as.data.frame(xout))   ### extract only fishing effort overlapping with 
     rm(x,xout)
   }
+  fwrite(out,"C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\GFW\\AYNA_effort.csv")
 }
 
 
 
-#### read and combine data for a single year
 
-GFWcsvs<-list.files(pattern="csv")
-GFWcsvs<-GFWcsvs[1:365]
+#########################################################################
+### PLOT THE DATASETS TOGETHER ON ONE GRAPH
+#########################################################################
 
-for (f in 1:length(GFWcsvs)){
-  x<-fread(GFWcsvs[f]) %>% filter(geartype %in% c("drifting_longlines","set_longlines")) %>%
-    mutate(quarter=if_else(month(date) %in% c(1, 2, 3),"Q1",ifelse(
-      month(date) %in% c(4, 5, 6),"Q2",ifelse(month(date) %in% c(7, 8, 9),"Q3","Q4"))))
-  sfx<-st_as_sf(x, coords = c('cell_ll_lon', 'cell_ll_lat'), crs = 4326)
-  if(unique(x$quarter)=="Q1"){x$AYNA<-raster::extract(AYNAQ1,sfx)}
-  if(unique(x$quarter)=="Q2"){x$AYNA<-raster::extract(AYNAQ2,sfx)}
-  if(unique(x$quarter)=="Q3"){x$AYNA<-raster::extract(AYNAQ3,sfx)}
-  if(unique(x$quarter)=="Q4"){x$AYNA<-raster::extract(AYNAQ4,sfx)}
-  xout<-x %>% filter(!is.na(AYNA))
-  out<-rbind(out,as.data.frame(xout))   ### extract only fishing effort overlapping with 
-  rm(x,xout)
-}
-head(out)
+
+### SUMMARISE DATA FOR YEARS ###
+out %>% group_by(year) %>%
+	rename(Year=year) %>%
+	summarise(effort=sum(effort)) %>%
+	left_join(longline, by="Year") %>%
+	gather(key="Dataset",value="N",-Year) %>%
+
+ggplot(aes(x=Year,y=N,colour=Dataset)) + geom_point(size=2) + geom_smooth()
 
 
 
 
+out %>% group_by(year) %>%
+	rename(Year=year) %>%
+	filter(Year>2015) %>%
+	summarise(effort=sum(effort)) %>%
+	left_join(longline, by="Year") %>%
+
+ggplot(aes(x=effort,y=n_hooks)) + geom_point(size=2) + geom_smooth()
 
 
+fwrite(out,"C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\GFW\\AYNA_effort.csv")
 
 
 
