@@ -134,7 +134,7 @@ model {
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p.ad[1] ~ dunif(0.05, 0.5)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
+    mean.p.ad[1] ~ dunif(0.0, 0.5)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
     mean.p.ad[2] ~ dunif(0.2, 1)	           # Prior for mean adult recapture - should be higher than 20%
 
     for (gy in 1:2){    ## for good and poor monitoring years
@@ -272,10 +272,10 @@ jags.data <- list(marr.j = chick.marray,
                   
                   ### longline effort data
                   ICCAT.ll.e = longline$n_hooks %>% as.numeric(), 
-                  ICCAT.ll.mit = longline$n_hooks %>% as.numeric(), ,
-                  Nam.ll.mit = longline$ %>% as.numeric(), , 
-                  beta.SA.ll.mit = longline$ %>% as.numeric(),
-                  beta.Uru.ll.mit = longline$ %>% as.numeric(), 
+                  ICCAT.ll.mit = longline$mit.ICCAT %>% as.numeric(), 
+                  Nam.ll.mit = longline$mit.NAM %>% as.numeric(), 
+                  SA.ll.mit = longline$mit.RSA %>% as.numeric(),
+                  Uru.ll.mit = longline$mit.URU %>% as.numeric()
                   
                   # ### FUTURE PROJECTION
                   #FUT.YEAR=30,  ### for different scenarios future starts at 1
@@ -314,9 +314,6 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
 parameters <- c("mean.phi.ad","mean.phi.juv", "mean.p.ad", 'mean.p.juv', "phi.ad", "phi.juv", 
                 "beta.ICCAT.ll.e", "beta.ICCAT.ll.mit", "beta.Nam.ll.mit", "beta.SA.ll.mit", "beta.Uru.ll.mit")
 
-# monitor annual survival values and plot against whether it's a good or bad year
-
-
 # MCMC settings
 nt <- 1#0
 nb <- 25000
@@ -345,6 +342,14 @@ library(coda)
 plot(AYNAipm)
 gelman.diag(AYNAipm, multivariate = FALSE, autoburnin = TRUE)
 summary(AYNAipm)
+
+# monitor annual survival values and plot against whether it's a good or bad year
+goodyears$p.sel
+goodyears$prop.seen
+library(stringr)
+survival_posteriors <- AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"phi.ad\\[")][[1]]
+plot(goodyears$prop.seen[1:43],apply(survival_posteriors, 2, median))
+boxplot(apply(survival_posteriors, 2, median) ~ goodyears$p.sel[1:43])
 
 summary_AYNAipm_df <- as.data.frame(summary_AYNAipm)
 View(summary_AYNAipm_df)
