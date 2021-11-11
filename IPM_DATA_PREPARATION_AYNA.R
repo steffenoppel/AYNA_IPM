@@ -341,16 +341,16 @@ length(unique(fixed_contacts$BirdID))
 length(allbirds)
 
 
-### CHECK WHAT BIRDS WERE RINGED AS CHICKS BEFORE 1978
-oldchicks<-fixed_contacts %>% filter(Contact_Year<=start) %>% filter(ContAge<2)
-fixed_contacts %>% filter(BirdID %in% oldchicks$BirdID)
-dim(fixed_contacts)
+### CHECK WHAT BIRDS WERE RINGED AS CHICKS BEFORE 1985
+oldchicks<-deploy_age %>% filter(FIRST_AGE=="Chick") %>% filter(FIRST_YEAR<start+1)
+length(unique(oldchicks))
 
 ### REMOVE RECORDS FROM BEFORE THE SET START YEAR AND BIRDS FIRST MARKED IN LAST YEAR
 unique(fixed_contacts$Contact_Year)
 contacts<-fixed_contacts %>%
   #filter(Contact_Year>=start) %>%
-  filter(Contact_Year>= ifelse(AGE==0,start+1,start)) #necessary after 1982 when chicks are ringed in year after adults (same season)
+  filter(Contact_Year>= ifelse(AGE==0,start+1,start)) %>% #necessary after 1982 when chicks are ringed in year after adults (same season)
+  mutate(FIRST_AGE=if_else(BirdID %in% oldchicks$BirdID,"Adult",FIRST_AGE))
 dim(contacts)
 unique(contacts$FIRST_AGE)
 
@@ -430,6 +430,9 @@ ggplot() + geom_bar(aes(x=Contact_Year,y=prop.seen, fill=Effort), stat="identity
 #ggsave("C:\\STEFFEN\\MANUSCRIPTS\\in_prep\\AYNA_IPM\\FigS1.jpg", width=9, height=6)
 
 
+### troubleshoot errors in chick.marray
+contacts %>% filter(Age=="Chick") %>% filter(Contact_Season=="1995-96") %>% filter (Contact_Year<2000)
+
 
 #############################################################################
 ##   9. CREATE MATRIX OF ENCOUNTERS AND AGES ###############
@@ -447,6 +450,13 @@ AYNA_CHICK<- contacts %>% mutate(count=if_else(Contact_Type == "Recovery", 2, 1)
   arrange(BirdID) 
 dim(AYNA_CHICK) 
 which(AYNA_CHICK == 2, arr.ind = T)
+
+
+#### find birds that were seen in subsequent years after marking -> birds ringed as chicks before start of study period
+errorcheck<-AYNA_CHICK$BirdID[which(AYNA_CHICK[,13]==1 & AYNA_CHICK[,14]==1)]
+contacts %>% filter(BirdID == errorcheck[2])
+
+
 
 ## DEAD RECOVERIES ARE KNOWN ZEROS IN ENCOUNTER HISTORY
 
@@ -475,7 +485,7 @@ dim(AYNA_CHICK)
 ### identify number of chicks ringed every year
 phi.juv.possible<-AYNA_CHICK %>% gather(key='Year', value='count',-BirdID) %>% group_by(Year) %>% summarise(N=sum(count == 1)) %>% # AEB changed 11 Nov 2021 - effort only matters for live birds
   mutate(JuvSurv=if_else(N<25,0,1)) %>%
-  mutate(JuvSurv=if_else(Year>2018,0,JuvSurv)) ### not possible yet to estimate juvenile survival after 2018
+  mutate(JuvSurv=if_else(Year>2018,0,JuvSurv)) %>% print(n=30)### not possible yet to estimate juvenile survival after 2018
 
 phi.juv.possible$JuvSurv
 
@@ -634,7 +644,7 @@ ggplot(RECRUIT.AGE) + geom_bar(aes(x=age,y=prop),stat='identity', fill='cornflow
 
 
 ### IDENTIFY THE CONTACTS OF AGE <4 TO DOUBLE-CHECK IN DATABASE
-DOUBLE_CHECK<-contacts %>% filter(ContAge %in% c(1,2)) %>%
+DOUBLE_CHECK<-contacts %>% filter(ContAge %in% c(1:5)) %>%
   arrange(BirdID,Date_Time)
 
 contacts %>% filter(BirdID %in% unique(DOUBLE_CHECK$BirdID)) %>%
