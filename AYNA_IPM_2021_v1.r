@@ -6,6 +6,12 @@
 # based on https://github.com/steffenoppel/TRAL_IPM
 # modified for AYNA on 9 Nov 2021
 
+## 11 Nov 2021 - added future projection for 3 scenarios to test whether future monitoring would pick up trends
+## 1 - no change
+## 2 - lower breeding success
+## 3 - lower survival
+
+
 
 library(tidyverse)
 library(lubridate)
@@ -73,12 +79,12 @@ PROD.DAT<-ADCOUNT %>% gather(key='Site', value="adults",-Year) %>%
 
 ### DIMENSION MISMATCH IN DATA
 # IPM runs from 2008-2021 
-# survival analysis runs from 1978-2021, but recapture index refers to columns, which represent year 1979-2021 plus the ones never recaptured (last column)
+# survival analysis runs from 1985-2021, but recapture index refers to columns, which represent year 1985-2021 plus the ones never recaptured (last column)
 # very difficult
 names(AYNA_CHICK)
 POPSIZE$Year
 
-OFFSET<-min(which(!is.na(match(as.numeric(substr(names(AYNA_CHICK)[2:44],1,4)),POPSIZE$Year))))
+OFFSET<-min(which(!is.na(match(as.numeric(substr(names(AYNA_CHICK)[2:dim(AYNA_CHICK)[2]],1,4)),POPSIZE$Year))))
 substr(names(AYNA_CHICK),1,4)[OFFSET+1]
 
 ### SCALE NUMBER OF HOOKS
@@ -90,11 +96,12 @@ longline <- longline %>%
   add_row(Year = 2021, n_hooks = ave.since.2010)
 longline
 
+
 #########################################################################
 # SPECIFY FUTURE DECREASE IN SURVIVAL
 #########################################################################
 
-dec.surv=0.9  ## we assume that adult survival will decrease by 10%
+dec.surv=0.8  ## we assume that adult survival will decrease by 20%
 lag.time=10    ## the decrease will take 10 years to materialise
 PROJECTION.years<-seq(1,30,1)  ## we specify the relative survival decrease for all 30 years in the projection
 
@@ -398,8 +405,8 @@ model {
 #-------------------------------------------------
   ## includes 3 scenarios
   ## scenario 1: projection with no changes in demography
-  ## scenario 2: successful mouse eradication in 2021 - fecundity doubles
-  ## scenario 3: increasing mouse impacts on adult survival (adult survival decreases by 10%)
+  ## scenario 2: disaster 1 where fecundity declines by 50%
+  ## scenario 3: disaster 2 where increasing mortality of adult survivals leads to adult survival decreases by 20%
     
     ## recruit probability
     for (age in 1:30) {
@@ -443,6 +450,12 @@ model {
     Ntot.f[scen,1]<-sum(IM.f[scen,1,,3])+Ntot.breed.f[scen,1]+N.atsea.f[scen,1]  ## total population size is all the immatures plus adult breeders and adults at sea
 
 
+    ### THE OBSERVED AYNA POPULATION IN THAT YEAR GIVEN A BREEDING PAIR CENSUS###
+    site.error[scen,1] ~ dunif(1,11)
+    time.error[scen,1] ~ dunif(1,14)
+    Nobs.f[scen,1] ~ dnorm(Ntot.breed.f[scen,1], tau.obs[round(site.error,0),round(time.error,0)])								# Distribution for random error in observed numbers (counts)
+    
+
     
     ### ~~~~~~~~~~ LOOP OVER ALL SUBSEQUENT FUTURE YEARS ~~~~~~~~~###
 
@@ -482,6 +495,21 @@ model {
 
       ### THE TOTAL AYNA POPULATION ###
       Ntot.f[scen,tt]<-sum(IM.f[scen,tt,,3])+Ntot.breed.f[scen,tt]+N.atsea.f[scen,tt]  ## total population size is all the immatures plus adult breeders and adults at sea
+
+
+      ### THE OBSERVED AYNA POPULATION IN THAT YEAR GIVEN A BREEDING PAIR CENSUS###
+
+      #for (s in 1:n.sites.count){			### if we want to generate counts per study area
+    
+        ## Observation process
+        site.error[scen,tt] ~ dunif(1,11)
+        time.error[scen,tt] ~ dunif(1,14)
+        Nobs.f[scen,tt] ~ dnorm(Ntot.breed.f[scen,tt], tau.obs[round(site.error,0),round(time.error,0)])								# Distribution for random error in observed numbers (counts)
+
+      #}		## end site loop
+
+
+
 
 
     } ### end future loop
@@ -538,8 +566,8 @@ jags.data <- list(marr.j = chick.marray,
                   # ### FUTURE PROJECTION
                   FUT.YEAR=30,  ### for different scenarios future starts at 1
                   n.scenarios=1,
-                  fut.surv.change=as.matrix(fut.surv.change[,2]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
-                  fut.fec.change=c(1)     ## future fecundity change - vector with one element for each scenario
+                  fut.surv.change=as.matrix(fut.surv.change[,2:4]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
+                  fut.fec.change=c(1,0.5,1)     ## future fecundity change - vector with one element for each scenario
                   )
 
 
