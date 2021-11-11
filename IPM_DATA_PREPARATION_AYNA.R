@@ -19,7 +19,6 @@ select<-dplyr::select
 #############################################################################
 ## SPECIFY THE SPECIES AND START YEAR FOR SURVIVAL MODEL
 SP<-"AYNA"
-start<-1978  ## for CMR data
 IPMstart<-2007 ## for count and breeding success data - only start reliably in 2008
 
 
@@ -288,6 +287,22 @@ contacts %>% filter(ContAge==1)
 unique(contacts$Location)
 STUDY_AREAS<- c("Area 1","Not Specified","Between the base and seal beach","Area 8","Area 3","Area 3/10","Area 10", "Prion Cave","Tumbledown")
 
+
+### ASSESS PLAUSIBLE START DATE
+# early years may have only listed those birds later observed again, need to find start date
+# goal is to look at proportion of marked birds later observed
+
+n_resights_summary<-contacts %>% group_by(BirdID,FIRST_YEAR,FIRST_AGE) %>%
+  summarise(n_seasons=length(unique(Contact_Season))) %>%
+  ungroup() %>%
+  group_by(FIRST_YEAR,FIRST_AGE) %>%
+  summarise(n=length(unique(BirdID)),min=min(n_seasons),max=max(n_seasons), median=median(n_seasons))
+print(n_resights_summary,n=15)
+
+### START IN SEASON 1982-83 - first solid data in database
+start<-1982  ## for CMR data
+
+
 ##### NUMBER OF CONTACTS OUTSIDE FOCAL STUDY AREAS ###
 contacts %>% filter(!(Location %in% STUDY_AREAS)) %>% filter(Contact_Type!="Capture") %>% group_by(FIRST_AGE,Location) %>%
   summarise(n_birds=length(unique(BirdID)))
@@ -310,7 +325,7 @@ contacts %>% filter(Contact_Type=="Recovery")
 
 
 ########## CREATE A LOOP OVER EVERY BIRD TO CHECK WHETHER THEY WERE EVER RECORDED IN STUDY AREAS
-# allbirds<-unique(contacts$BirdID)
+allbirds<-unique(contacts$BirdID)
 # fixed_contacts<-data.frame()
 # 
 # for (xid in allbirds){
@@ -329,18 +344,19 @@ length(allbirds)
 ### CHECK WHAT BIRDS WERE RINGED AS CHICKS BEFORE 1978
 oldchicks<-fixed_contacts %>% filter(Contact_Year<=start) %>% filter(ContAge<2)
 fixed_contacts %>% filter(BirdID %in% oldchicks$BirdID)
-
+dim(fixed_contacts)
 
 ### REMOVE RECORDS FROM BEFORE THE SET START YEAR AND BIRDS FIRST MARKED IN LAST YEAR
+unique(fixed_contacts$Contact_Year)
 contacts<-fixed_contacts %>%
-  filter(year(Date_Time)>=start)
+  filter(Contact_Year>=start)
 dim(contacts)
 unique(contacts$FIRST_AGE)
 
 sort(unique(contacts$Contact_Season))
 
-all.seasons <- paste(1978:2021, "-", 
-                     c(79:99, 
+all.seasons <- paste(1982:2021, "-", 
+                     c(83:99, 
                        "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", 
                        10:22), 
                      sep = "")
@@ -625,7 +641,7 @@ contacts %>% filter(BirdID %in% unique(DOUBLE_CHECK$BirdID)) %>%
 
 
 
-
+## Bird ID GO84764 with ring 835173 has dubious contact in 1996 - changed in database
 
 
 #############################################################################
