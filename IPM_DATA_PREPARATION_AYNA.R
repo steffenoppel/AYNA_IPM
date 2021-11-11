@@ -832,6 +832,11 @@ ggsave("AYNA_ICCAT_trend_plot.jpg", width=12, height=9)
 ##   12. SAVE WORKSPACE ###############
 #############################################################################
 setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
+detach("package:raster", unload=TRUE)
+detach("package:maptools", unload=TRUE)
+detach("package:sp", unload=TRUE)
+detach("package:rgdal", unload=TRUE)
+detach("package:sf", unload=TRUE)
 save.image("AYNA_IPM_input.marray.RData")
 
 
