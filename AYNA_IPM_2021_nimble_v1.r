@@ -542,26 +542,47 @@ const <- list(n.occasions = length(start:2021),
 
 p.juv.recruit.inits <- plogis(-4 + 1:30/2)
 
+# IMinits <- array(NA, dim = c(n.years.count, 30, 3))
+# IMinits[,1,1] = c(rnorm(1, 263, 20),rep(NA,n.years.count-1)) # TODO change sd???
+# IMinits[,2,1] = c(rnorm(1, 275, 20),rep(NA,n.years.count-1))
+# IMinits[,3,1] = c(rnorm(1, 264, 20),rep(NA,n.years.count-1))
+# IMinits[,4,1] = c(rnorm(1, 177, 20),rep(NA,n.years.count-1))
+# IMinits[,5,1] = c(rnorm(1, 290, 20),rep(NA,n.years.count-1))
+# IMinits[,6,1] = c(rnorm(1, 90, 20),rep(NA,n.years.count-1))
+# IMinits[,7,1] = c(rnorm(1, 158, 20),rep(NA,n.years.count-1))
+# 
+# for (age in 1:7) {
+#   IMinits[1, age, 2] <- IMinits[1, age, 1] * p.juv.recruit.inits[age]
+#   IMinits[1, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
+# }
+# 
+# for (age in 8:30) {
+#   IMinits[,age,1] = c(IMinits[1, age-1, 3] * 0.9,rep(NA,n.years.count-1))
+#   IMinits[1, age, 2] <- IMinits[1, age, 1] * p.juv.recruit.inits[age]
+#   IMinits[1, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
+# }
+# IMinits[1,, 1:3]
+
 IMinits <- array(NA, dim = c(n.years.count, 30, 3))
-IMinits[,1,1] = c(rnorm(1, 263, 20),rep(NA,n.years.count-1)) # TODO change sd???
-IMinits[,2,1] = c(rnorm(1, 275, 20),rep(NA,n.years.count-1))
-IMinits[,3,1] = c(rnorm(1, 264, 20),rep(NA,n.years.count-1))
-IMinits[,4,1] = c(rnorm(1, 177, 20),rep(NA,n.years.count-1))
-IMinits[,5,1] = c(rnorm(1, 290, 20),rep(NA,n.years.count-1))
-IMinits[,6,1] = c(rnorm(1, 90, 20),rep(NA,n.years.count-1))
-IMinits[,7,1] = c(rnorm(1, 158, 20),rep(NA,n.years.count-1))
+IMinits[,1,1] = c(rnorm(n.years.count, 263, 20)) # TODO change sd???
+IMinits[,2,1] = c(rnorm(n.years.count, 275, 20))
+IMinits[,3,1] = c(rnorm(n.years.count, 264, 20))
+IMinits[,4,1] = c(rnorm(n.years.count, 177, 20))
+IMinits[,5,1] = c(rnorm(n.years.count, 290, 20))
+IMinits[,6,1] = c(rnorm(n.years.count, 90, 20))
+IMinits[,7,1] = c(rnorm(n.years.count, 158, 20))
 
 for (age in 1:7) {
-  IMinits[1, age, 2] <- IMinits[1, age, 1] * p.juv.recruit.inits[age]
-  IMinits[1, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
+  IMinits[, age, 2] <- IMinits[, age, 1] * p.juv.recruit.inits[age]
+  IMinits[, age, 3] <- IMinits[,age,1] - IMinits[,age,2]
 }
 
 for (age in 8:30) {
-  IMinits[,age,1] = c(IMinits[1, age-1, 3] * 0.9,rep(NA,n.years.count-1))
-  IMinits[1, age, 2] <- IMinits[1, age, 1] * p.juv.recruit.inits[age]
-  IMinits[1, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
+  IMinits[,age,1] = c(IMinits[, age-1, 3] * 0.9)
+  IMinits[, age, 2] <- IMinits[, age, 1] * p.juv.recruit.inits[age]
+  IMinits[, age, 3] <- IMinits[,age,1] - IMinits[,age,2]
 }
-IMinits[1,, 1:3]
+IMinits[,, 1:3]
 
 
 inits <- list(sigma.phi = rexp(1, 1),
@@ -601,7 +622,7 @@ params <- c(
 
 #### MCMC SETTINGS ####
 nb <- 1 #burn-in
-ni <- 50 + nb #total iterations
+ni <- 5000 + nb #total iterations
 nt <- 1  #thin
 nc <- 3  #chains
 adaptInterval = 100
@@ -616,6 +637,14 @@ conf <- configureMCMC(Rmodel, monitors = params, thin = nt,
 conf$printSamplers(type = "conjugate")
 conf$printSamplers(type = "posterior") # check sampler defaults
 
+nodesWithSliceSamplers <- conf$samplerConfs
+
+# conf$removeSamplers("ann.fec")
+# conf$addSampler(target = "ann.fec[1]", type="conjugate")
+# conf$addSampler(target = "ann.fec[1:13]", type="AF_slice")
+# conf$addSampler(target = "ann.fec[13]", type="posterior_predictive_branch")
+# conf$printSamplers("ann.fec"
+
 # TODO
 # could block wrt to time
 # using RW block samplers
@@ -627,11 +656,7 @@ conf$printSamplers(type = "posterior") # check sampler defaults
 # juveniles and annual fecundity
 
 ## example
-# conf$removeSamplers("ann.fec")
-# conf$addSampler(target = "ann.fec[1]", type="conjugate")
-# conf$addSampler(target = "ann.fec[1:13]", type="AF_slice")
-# conf$addSampler(target = "ann.fec[13]", type="posterior_predictive_branch")
-# conf$printSamplers("ann.fec")
+)
 
 Rmcmc <- buildMCMC(conf)  
 Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
