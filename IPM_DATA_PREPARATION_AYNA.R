@@ -432,9 +432,17 @@ ggplot() + geom_bar(aes(x=Contact_Year,y=prop.seen, fill=Effort), stat="identity
 
 #### EXPLORE YEARS 1995 and 2010, when survival is very low
 
-## in 1995, mostly only one bird was recorded per nest, meaning that half of the partners were missed; no chicks were ringed
+## in 1995, 24 of 41 nests recorded only 1 partner at the nest, meaning that at least 27% of the partners were missed; no chicks were ringed
 contacts %>% filter(Contact_Season=="1995-96") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
-contacts %>% filter(Contact_Season=="1995-96") %>% group_by(Nest_Description) %>% summarise(n=length(unique(ContactID)))
+contacts %>% filter(Contact_Season=="1995-96") %>% group_by(Nest_Description) %>% summarise(n=length(unique(BirdID))) %>%
+  ungroup() %>% group_by(n) %>% summarise(nests=length(unique(Nest_Description)))
+60/82
+
+### comparatively normal season
+contacts %>% filter(Contact_Season=="1996-97") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
+contacts %>% filter(Contact_Season=="1996-97") %>% group_by(Nest_Description) %>% summarise(n=length(unique(BirdID))) %>%
+  ungroup() %>% group_by(n) %>% summarise(nests=length(unique(Nest_Description)))
+
 
 ## in 2010, 186 birds from 108 nests were recorded
 contacts %>% filter(Contact_Season=="2010-11") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
