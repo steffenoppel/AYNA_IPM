@@ -129,7 +129,7 @@ for (fd in 1:length(GFWdirs)){
     out<-rbind(out,as.data.frame(xout))   ### extract only fishing effort overlapping with 
     rm(x,xout)
   }
-  fwrite(out,"C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\GFW\\AYNA_effort.csv")
+  fwrite(out,"C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData\\AYNA_GFW_effort.csv")
 }
 
 
