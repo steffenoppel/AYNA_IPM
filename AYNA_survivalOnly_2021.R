@@ -99,10 +99,9 @@ fut.surv.change<- expand.grid(PROJECTION.years,dec.surv,lag.time) %>%
 ### SCALE NUMBER OF HOOKS
 
 longline <- longline %>% mutate(n_hooks = scale(n_hooks)) 
-ave.since.2010 <- longline %>% filter(Year > 2010) %>% summarise(mean(n_hooks)) %>% as.numeric
+ave.since.2010 <- longline %>% filter(Year > 2009 & Year < 2020) %>% select(2) %>% unlist() %>% mean() 
 longline <- longline %>% 
-  add_row(Year = 2020, n_hooks = ave.since.2010) %>% 
-  add_row(Year = 2021, n_hooks = ave.since.2010)
+  mutate(n_hooks = if_else(Year == 2020 | Year == 2021, ave.since.2010, n_hooks))
 longline
 
 
@@ -135,22 +134,27 @@ model {
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p.ad[1] ~ dunif(0.05, 0.5)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
+    mean.p.ad[1] ~ dunif(0.0, 0.5)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
     mean.p.ad[2] ~ dunif(0.2, 1)	           # Prior for mean adult recapture - should be higher than 20%
 
     for (gy in 1:2){    ## for good and poor monitoring years
       # TODO - could put more informative priors here
       # but also note that the uniform prior on the logit scale is informative
-      mean.p.juv[gy] ~ dunif(0, 1)	         # Prior for mean juvenile recapture - should be higher than 20% if they survive!
-      mu.p.juv[gy] <- log(mean.p.juv[gy] / (1-mean.p.juv[gy])) # Logit transformation
+      #mean.p.juv[gy] ~ dunif(-2, 0)	         # Prior for mean juvenile recapture - should be higher than 20% if they survive!
+      mu.p.juv[gy] ~ dunif(-2,0) # Logit transformation
+      #mu.p.juv[gy] ~ log(mean.p.juv[gy] / (1-mean.p.juv[gy])) # Logit transformation
       mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
     }
-    agebeta ~ dunif(0,1)    # Prior for shape of increase in juvenile recapture probability with age
-    beta.ICCAT.ll.e ~ dnorm(0, 1)  # TODO - change precison?
-    beta.ICCAT.ll.mit ~ dnorm(0, 1)  # TODO - change precison?
-    beta.Nam.ll.mit ~ dnorm(0, 1) # TODO - change precison?
-    beta.SA.ll.mit ~ dnorm(0, 1) # TODO - change precison?
-    beta.Uru.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+    
+    # this prior makes no sense
+    agebeta ~ dunif(0,0.5)    # Prior for shape of increase in juvenile recapture probability with age
+    
+    
+    # beta.ICCAT.ll.e ~ dnorm(0, 1)  # TODO - change precison?
+    # beta.ICCAT.ll.mit ~ dnorm(0, 1)  # TODO - change precison?
+    # beta.Nam.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+    # beta.SA.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+    # beta.Uru.ll.mit ~ dnorm(0, 1) # TODO - change precison?
 
     ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY OF JUVENILES
     for (t in 1:(n.occasions-1)){
@@ -159,6 +163,8 @@ model {
       }
       for (j in (t+1):(n.occasions-1)){
         logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t) + eps.p[j]
+        #logit(p.juv[t,j])  <- agebeta*(j - t) + eps.p[j]
+
       }
     }
     
@@ -180,8 +186,8 @@ model {
     ## RANDOM TIME EFFECT ON SURVIVAL AND ADULT RECAPTURE
     # TODO - add additional covariates wrt to fishing effory and bycatch mitigation
     for (j in 1:(n.occasions-1)){
-      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
-      logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
+      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] #+ beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
+      logit(phi.ad[j]) <- mu.ad + eps.phi[j] #+ beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
       eps.phi[j] ~ dnorm(0, tau.phi) 
       logit(p.ad[j])  <- mu.p.ad[goodyear[j]] + eps.p[j]    #### CAT HORSWILL SUGGESTED TO HAVE A CONTINUOUS EFFORT CORRECTION: mu.p.ad + beta.p.eff*goodyear[j] + eps.p[j]
       eps.p[j] ~ dnorm(0, tau.p)
@@ -257,7 +263,7 @@ jags.data <- list(marr.j = chick.marray,
                   r.a=apply(adult.marray,1,sum),
                   goodyear=goodyears$p.sel,
                   #goodyear=goodyears$prop.seen,   ### if using a continuous effort correction
-                  juv.poss=phi.juv.possible$JuvSurv, ### sets the annual survival of juveniles to the mean if <70 were ringed
+                  juv.poss=phi.juv.possible$JuvSurv#, ### sets the annual survival of juveniles to the mean if <70 were ringed
                   
                   ### count data
                   #n.sites.count=n.sites.count,
@@ -272,11 +278,11 @@ jags.data <- list(marr.j = chick.marray,
                   #n.years.fec= n.years.fec,
                   
                   ### longline effort data
-                  ICCAT.ll.e = longline$n_hooks %>% as.numeric(), 
-                  ICCAT.ll.mit = longline$n_hooks %>% as.numeric(), ,
-                  Nam.ll.mit = longline$ %>% as.numeric(), , 
-                  beta.SA.ll.mit = longline$ %>% as.numeric(),
-                  beta.Uru.ll.mit = longline$ %>% as.numeric(), 
+                  # ICCAT.ll.e = longline$n_hooks %>% as.numeric(), 
+                  # ICCAT.ll.mit = longline$mit.ICCAT %>% as.numeric(), 
+                  # Nam.ll.mit = longline$mit.NAM %>% as.numeric(), 
+                  # SA.ll.mit = longline$mit.RSA %>% as.numeric(),
+                  # Uru.ll.mit = longline$mit.URU %>% as.numeric()
                   
                   # ### FUTURE PROJECTION
                   #FUT.YEAR=30,  ### for different scenarios future starts at 1
@@ -289,13 +295,13 @@ jags.data <- list(marr.j = chick.marray,
 # Initial values 
 inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
                          mean.phi.juv = runif(1, 0.5, 0.9),
-                         mean.p.ad = c(runif(1, 0.05, 0.5), runif(1, 0.2, 1)),
-                         mean.p.juv = runif(2, 0, 1),
-                         beta.ICCAT.ll.e = rnorm(1, 0, 1),
-                         beta.ICCAT.ll.mit = rnorm(1, 0, 1),
-                         beta.Nam.ll.mit = rnorm(1, 0, 1), 
-                         beta.SA.ll.mit = rnorm(1, 0, 1), 
-                         beta.Uru.ll.mit = rnorm(1, 0, 1)
+                         mean.p.ad = c(runif(1, 0.05, 0.5), runif(1, 0.2, 1))#,
+                         # mean.p.juv = runif(2, 0, 1),
+                         # beta.ICCAT.ll.e = rnorm(1, 0, 1),
+                         # beta.ICCAT.ll.mit = rnorm(1, 0, 1),
+                         # beta.Nam.ll.mit = rnorm(1, 0, 1), 
+                         # beta.SA.ll.mit = rnorm(1, 0, 1), 
+                         # beta.Uru.ll.mit = rnorm(1, 0, 1)
                         
                          #Ntot.breed= c(runif(1, 4950, 5050),rep(NA,n.years.fec-1)), # TODO change this
                          #JUV= c(rnorm(1, 246, 0.1),rep(NA,n.years.fec-1)), # TODO change this
@@ -312,11 +318,9 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
 
 
 # Parameters monitored
-parameters <- c("mean.phi.ad","mean.phi.juv", "mean.p.ad", 'mean.p.juv', "phi.ad", "phi.juv", 
-                "beta.ICCAT.ll.e", "beta.ICCAT.ll.mit", "beta.Nam.ll.mit", "beta.SA.ll.mit", "beta.Uru.ll.mit")
-
-# monitor annual survival values and plot against whether it's a good or bad year
-
+parameters <- c("mean.phi.ad","mean.phi.juv", "mean.p.ad", 'mu.p.juv', "phi.ad", "phi.juv", "agebeta", "eps.p" 
+                #"beta.ICCAT.ll.e", "beta.ICCAT.ll.mit", "beta.Nam.ll.mit", "beta.SA.ll.mit", "beta.Uru.ll.mit"
+                )
 
 # MCMC settings
 nt <- 1#0
@@ -335,6 +339,7 @@ end.time <- Sys.time()
 (run.time <- end.time - start.time)
 
 
+
 #########################################################################
 # SAVE OUTPUT - RESULT PROCESSING in AYNA_IPM_result_summaries.r
 #########################################################################
@@ -345,7 +350,35 @@ summary_AYNAipm <- summary(AYNAipm)
 library(coda)
 plot(AYNAipm)
 gelman.diag(AYNAipm, multivariate = FALSE, autoburnin = TRUE)
-summary(AYNAipm)
+View(summary(AYNAipm))
+
+
+
+covariates <- rbind(AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[1]],
+                        AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[2]],
+                        AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[3]]
+)
+
+par(mfrow =c(2,3))
+for(i in 1:dim(covariates)[2]) {
+  hist(covariates[, i], main = colnames(covariates)[i])
+  abline(v = 0, col = "red")
+}
+par(mfrow = c(1,1))                     
+
+# monitor annual survival values and plot against whether it's a good or bad year
+goodyears$p.sel
+goodyears$prop.seen
+library(stringr)
+
+survival_posteriors <- AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"phi.ad\\[")][[1]]
+ggplot(as.data.frame(survival_posteriors[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors,2, median))) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
+
+survival_posteriors.juvs <- AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"phi.juv\\[")][[1]]
+ggplot(as.data.frame(survival_posteriors.juvs[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors.juvs,2, median))) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
+
+
+
 
 summary_AYNAipm_df <- as.data.frame(summary_AYNAipm)
 View(summary_AYNAipm_df)
