@@ -141,8 +141,9 @@ for (fd in 1:length(GFWdirs)){
 
 
 ### SUMMARISE DATA FOR YEARS ###
-out %>% group_by(year) %>%
-	rename(Year=year) %>%
+out %>% 
+	mutate(Year=year(date)) %>%
+	group_by(Year) %>%
 	summarise(effort=sum(effort)) %>%
 	left_join(longline, by="Year") %>%
 	gather(key="Dataset",value="N",-Year) %>%
@@ -152,17 +153,24 @@ ggplot(aes(x=Year,y=N,colour=Dataset)) + geom_point(size=2) + geom_smooth()
 
 
 
-out %>% group_by(year) %>%
-	rename(Year=year) %>%
-	filter(Year>2015) %>%
+out %>% mutate(Year=year(date)) %>%
+	group_by(Year) %>%
+	#filter(Year>2015) %>%
 	summarise(effort=sum(effort)) %>%
 	left_join(longline, by="Year") %>%
 
-ggplot(aes(x=effort,y=n_hooks)) + geom_point(size=2) + geom_smooth()
+ggplot(aes(x=effort/1000000,y=n_hooks/1000000)) + geom_point(size=2) + geom_smooth(method='lm') +
+	labs(x="GFW hours (millions)", y="ICCAT n hooks (millions)") +
+  theme(panel.background=element_rect(fill="white", colour="black"),
+        axis.text=element_text(size=18, color="black"),
+        axis.title=element_text(size=20),
+        strip.text.x=element_text(size=18, color="black"),
+        strip.background=element_rect(fill="white", colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank())
 
-
-fwrite(out,"C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\GFW\\AYNA_effort.csv")
-
+ggsave("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData\\ICCAT_GFW_correlation.jpg",width=6, height=6)
 
 
 
@@ -178,16 +186,6 @@ plotdat<-bind_rows(nhooksSummaryNAM,nhooksSummaryJR,nhooksSummaryICCAT) %>%
 
 ggplot(plotdat) +
   geom_line(aes(x=Year, y=scaledEff, col=Data), size=2) +
-  #scale_x_continuous(name="Year", limits=c(1979,2019), breaks=seq(1979,2019,5)) +
-  #scale_y_continuous(name="Longline fishing effort (standardized)", limits=c(-3,3), breaks=seq(-3,3,0.5)) +
-  theme(panel.background=element_rect(fill="white", colour="black"),
-        axis.text.y=element_text(size=18, color="black"),
-        axis.text.x=element_text(size=14, color="black", angle=45, vjust=0.5),
-        axis.title=element_text(size=20),
-        strip.text.x=element_text(size=18, color="black"),
-        strip.background=element_rect(fill="white", colour="black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank())
+
 
 
