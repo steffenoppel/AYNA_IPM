@@ -282,7 +282,7 @@ contacts %>% filter(ContAge==1)
 
 
 ################################################################################################
-##   7. REMOVE BIRDS FROM OUTSIDE THE STUDY AREAS AND BEFORE 1978  ###############
+##   7. REMOVE BIRDS FROM OUTSIDE THE STUDY AREAS AND BEFORE 1985  ###############
 ##############################################################################################
 unique(contacts$Location)
 STUDY_AREAS<- c("Area 1","Not Specified","Between the base and seal beach","Area 8","Area 3","Area 3/10","Area 10", "Prion Cave","Tumbledown")
@@ -401,12 +401,12 @@ tail(n_exist)
 goodyears<-contacts %>% group_by(Contact_Year) %>% summarise(n=length(unique(BirdID))) %>%
   left_join(n_exist, by='Contact_Year') %>%
   mutate(prop.seen=n/N_all) %>%
-  mutate(p.sel=if_else(prop.seen>0.13,2,1))
+  mutate(p.sel=if_else(prop.seen>0.11,2,1))
 tail(goodyears)
 
 ggplot(goodyears) + geom_histogram(aes(x=prop.seen), binwidth=0.01)
 
-goodyears %>% mutate(Effort=if_else(prop.seen<0.15,"low","high")) %>%
+goodyears %>% mutate(Effort=if_else(prop.seen<0.11,"low","high")) %>%
 ggplot() + geom_bar(aes(x=Contact_Year,y=prop.seen, fill=Effort), stat="identity") + 
   
   labs(x = "Year",
@@ -428,6 +428,35 @@ ggplot() + geom_bar(aes(x=Contact_Year,y=prop.seen, fill=Effort), stat="identity
         panel.border = element_blank()) 
 
 #ggsave("C:\\STEFFEN\\MANUSCRIPTS\\in_prep\\AYNA_IPM\\FigS1.jpg", width=9, height=6)
+
+
+#### EXPLORE YEARS 1995 and 2010, when survival is very low
+
+## in 1995, 24 of 41 nests recorded only 1 partner at the nest, meaning that at least 27% of the partners were missed; no chicks were ringed
+contacts %>% filter(Contact_Season=="1995-96") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
+contacts %>% filter(Contact_Season=="1995-96") %>% group_by(Nest_Description) %>% summarise(n=length(unique(BirdID))) %>%
+  ungroup() %>% group_by(n) %>% summarise(nests=length(unique(Nest_Description)))
+60/82
+
+### comparatively normal season
+contacts %>% filter(Contact_Season=="1996-97") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
+contacts %>% filter(Contact_Season=="1996-97") %>% group_by(Nest_Description) %>% summarise(n=length(unique(BirdID))) %>%
+  ungroup() %>% group_by(n) %>% summarise(nests=length(unique(Nest_Description)))
+
+
+## in 2010, 186 birds from 108 nests were recorded
+contacts %>% filter(Contact_Season=="2010-11") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
+contacts %>% filter(Contact_Season=="2010-11") %>% group_by(Nest_Description, Location) %>% summarise(n=length(unique(ContactID))) %>% spread(key=Location, value=n)
+
+## are the birds in Not Specified study area ever seen again - yes, they are...
+unspec2010<-contacts %>% filter(Contact_Season=="2010-11") %>% filter(Location=="Not Specified") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
+contacts %>% filter(BirdID %in% unspec2010$BirdID) %>% group_by(BirdID) %>% summarise(n=length(unique(Contact_Season))) %>%
+  ggplot() + geom_histogram(aes(x=n), binwidth=1)
+
+## are the 27 chicks MARKED in 2011 ever seen again - yes, they are...
+contacts %>% filter(FIRST_YEAR %in% c(2005:2015)) %>% filter(FIRST_AGE=="Chick") %>% group_by(FIRST_YEAR,BirdID) %>% summarise(n=length(unique(Contact_Season))) %>%
+  ggplot() + geom_histogram(aes(x=n), binwidth=1) + facet_wrap(~FIRST_YEAR)
+
 
 
 ### troubleshoot errors in chick.marray
@@ -484,8 +513,8 @@ dim(AYNA_CHICK)
 
 ### identify number of chicks ringed every year
 phi.juv.possible<-AYNA_CHICK %>% gather(key='Year', value='count',-BirdID) %>% group_by(Year) %>% summarise(N=sum(count == 1)) %>% # AEB changed 11 Nov 2021 - effort only matters for live birds
-  mutate(JuvSurv=if_else(N<25,0,1)) %>%
-  mutate(JuvSurv=if_else(Year>2018,0,JuvSurv)) %>% print(n=30)### not possible yet to estimate juvenile survival after 2018
+  mutate(JuvSurv=if_else(N<50,0,1)) %>%
+  mutate(JuvSurv=if_else(Year>2015,0,JuvSurv)) %>% print(n=30)### not possible yet to estimate juvenile survival after 2018
 
 phi.juv.possible$JuvSurv
 
@@ -834,7 +863,7 @@ counts %>% filter(Species==SP) %>%
   ylab("Million longline hooks in AYNA distribution") +
   xlab("Year")
 
-ggsave("AYNA_ICCAT_trend_plot.jpg", width=12, height=9)
+#ggsave("AYNA_ICCAT_trend_plot.jpg", width=12, height=9)
 
 
 
