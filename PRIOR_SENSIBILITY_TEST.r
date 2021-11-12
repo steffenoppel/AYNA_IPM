@@ -63,13 +63,13 @@ FAKEDATA %>% #full_join(INPUT, by='simul') %>%
 
 
 #### SPECIFY EQUATION TO CALCULATE AGE-SPECIFIC RETURN OF JUVENILES
-agebeta<-seq(0,0.5, 0.01)
-mu.p.juv<-seq(-2,0,0.1)
+agebeta<-seq(0.8,1.2, 0.01)
+mu.p.juv<-seq(-5,-4,0.1)
 ages<-1:15
 FAKEDATA<-expand.grid(a=ages,b=agebeta,int=mu.p.juv)
 FAKEDATA %>% #full_join(INPUT, by='simul') %>%
   mutate(logit_p=
-           int+ a*b) %>%
+           int+ a*b/2) %>%
   mutate(p=plogis(logit_p)) %>%
   
   ggplot() + geom_histogram(aes(x=p)) + facet_wrap(~a)
