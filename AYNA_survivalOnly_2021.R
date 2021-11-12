@@ -141,13 +141,13 @@ model {
       # TODO - could put more informative priors here
       # but also note that the uniform prior on the logit scale is informative
       #mean.p.juv[gy] ~ dunif(-2, 0)	         # Prior for mean juvenile recapture - should be higher than 20% if they survive!
-      mu.p.juv[gy] ~ dunif(-2,0) # Logit transformation
+      mu.p.juv[gy] ~ dnorm(-4, 4) # Logit transformation
       #mu.p.juv[gy] ~ log(mean.p.juv[gy] / (1-mean.p.juv[gy])) # Logit transformation
       mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
     }
     
     # this prior makes no sense
-    agebeta ~ dunif(0,0.5)    # Prior for shape of increase in juvenile recapture probability with age
+    agebeta ~ dnorm(1,1000)    # Prior for shape of increase in juvenile recapture probability with age
     
     
     # beta.ICCAT.ll.e ~ dnorm(0, 1)  # TODO - change precison?
@@ -162,14 +162,14 @@ model {
         p.juv[t,j] <- 0
       }
       for (j in (t+1):(n.occasions-1)){
-        logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t) + eps.p[j]
+        logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
         #logit(p.juv[t,j])  <- agebeta*(j - t) + eps.p[j]
 
       }
     }
     
     ## PRIORS FOR RANDOM EFFECTS
-    sigma.p ~ dexp(1)                # Prior for standard deviation
+    sigma.p ~ dexp(2)                # Prior for standard deviation
     tau.p <- pow(sigma.p, -2)
     
     
