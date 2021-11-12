@@ -704,17 +704,18 @@ select<-dplyr::select
 #########################################################################
 # LOAD FISHERY DATA PROVIDED BY JOEL RICE
 #########################################################################
-try(setwd("C:\\STEFFEN\\RSPB\\Marine\\Bycatch"), silent=T)
-nhooks<-fread("SH_longline_effort_30MAY_2019.csv")
-head(nhooks)
-nhooksSummaryJR<-nhooks %>%
-  filter(lat5>(-40.1)) %>% filter(lat5<(-20.1)) %>%
-  filter(lon5<20.1) %>% filter(lon5>(-15.1)) %>%
-  filter(yy>1977) %>%
-  group_by(yy) %>%
-  summarise(N=sum(hooks))%>%
-  mutate(Data="JoelRice") %>%
-  rename(Year=yy)
+## less complete and very similar to ICCAT data but with dubious series in 1980s
+# try(setwd("C:\\STEFFEN\\RSPB\\Marine\\Bycatch"), silent=T)
+# nhooks<-fread("SH_longline_effort_30MAY_2019.csv")
+# head(nhooks)
+# nhooksSummaryJR<-nhooks %>%
+#   filter(lat5>(-40.1)) %>% filter(lat5<(-20.1)) %>%
+#   filter(lon5<20.1) %>% filter(lon5>(-15.1)) %>%
+#   filter(yy>1977) %>%
+#   group_by(yy) %>%
+#   summarise(N=sum(hooks))%>%
+#   mutate(Data="JoelRice") %>%
+#   rename(Year=yy)
 
 
 # #########################################################################
@@ -802,17 +803,94 @@ try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\
 nhooks<-fread("Namibia_DemersalLongLine.csv")
 head(nhooks)
 nhooksSummaryNAM<-nhooks %>%
-  #filter(Year>1999 & Year<2018) %>%
+  filter(Year>1984) %>%
   group_by(Year) %>%
   summarise(N=sum(HOOKS_SET)) %>%
-  mutate(Data="Namibia")
+  mutate(Data="Namibia_demersal")
+tail(nhooksSummaryNAM)
+
+
+# LOAD NAMIBIAN DEMERSAL FISHERY DATA FROM TUCK ET AL
+## not necessary as fisheries data are better
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
+NAMdem<-fread("Namibia Dem Hks Est.txt") %>% rename(Year=V1,Quarter=V2,Lat=V3,Lon=V4,n_hooks=V5)
+head(NAMdem)
+NAMdemersalsummary<-NAMdem %>%
+  group_by(Year) %>%
+  summarise(N=sum(n_hooks)) %>%
+  mutate(Data="Namibia_demersal_Tuck")
+
+NAM<-bind_rows(NAMdemersalsummary,nhooksSummaryNAM) %>% spread(key=Data, value=N)
+
+bind_rows(NAMdemersalsummary,nhooksSummaryNAM) %>%
+  ggplot() +
+  geom_line(aes(x=Year, y=N, col=Data), size=2) +
+  theme(panel.background=element_rect(fill="white", colour="black"),
+        axis.text.y=element_text(size=18, color="black"),
+        axis.text.x=element_text(size=14, color="black", angle=45, vjust=0.5),
+        axis.title=element_text(size=20),
+        strip.text.x=element_text(size=18, color="black"),
+        strip.background=element_rect(fill="white", colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank())
+
+
+# LOAD SOUTH AFRICAN DEMERSAL FISHERY DATA FROM TUCK ET AL
+## more data potentially from: https://www.dffe.gov.za/sites/default/files/reports/statusofsouthafrican_marinefisheryresources2020.pdf
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
+RSAdem<-fread("Saf_KKlip_Dem.txt", sep="\t")
+head(RSAdem)
+RSAdemersalsummary<-RSAdem %>%
+  filter(Lon<20) %>% ## only west of Cape Agulhas
+  group_by(Year) %>%
+  summarise(N=sum(Effort)) %>%
+  mutate(Data="SouthAfrica_demersal")
+
+
+# LOAD NAMIBIAN TRAWL DATA FROM TUCK ET AL
+
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
+library(readxl)
+NAMtrawl<-read_excel("Namibia_trawl.xlsx", sheet="Data") #%>% rename(Year=V1,Quarter=V2,Lat=V3,Lon=V4,n_hooks=V5)
+head(NAMtrawl)
+NAMtrawlsummary<-NAMtrawl %>%
+  group_by(Year) %>%
+  summarise(N=sum(Hrs)) %>%
+  mutate(Data="Namibia_trawl")
+
+## ADD Trawl data from Nina da Rocha bycatch paper
+NAMtrawlwet<-fread("C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\Namibia\\Data\\Namibia_wetfish_trawl_extrapolations.csv") #%>% rename(Year=V1,Quarter=V2,Lat=V3,Lon=V4,n_hooks=V5)
+NAMtrawlfreeze<-fread("C:\\STEFFEN\\RSPB\\Marine\\Bycatch\\Namibia\\Data\\Namibia_freeze_trawl_extrapolations.csv") #%>% rename(Year=V1,Quarter=V2,Lat=V3,Lon=V4,n_hooks=V5)
+NAMtrawladd<-bind_rows(NAMtrawlwet,NAMtrawlfreeze) %>% group_by(Year) %>%
+  summarise(N=sum(tot_effort)) %>%
+  mutate(Data="Namibia_trawl")
+
+NAMtrawlsummary<-NAMtrawlsummary %>% filter(Year<2009) %>%
+  bind_rows(NAMtrawladd)
+tail(NAMtrawlsummary)
+
+
+
+# LOAD URUGUAY TRAWL DATA FROM TUCK ET AL
+
+try(setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM\\BycatchData"), silent=T)
+library(readxl)
+URUtrawl<-read_excel("Uruguay_trawl.xlsx", sheet="Data") #%>% rename(Year=V1,Quarter=V2,Lat=V3,Lon=V4,n_hooks=V5)
+head(URUtrawl)
+URUtrawlsummary<-URUtrawl %>%
+  group_by(Year) %>%
+  summarise(N=sum(Hrs)) %>%
+  mutate(Data="Uruguay_trawl")
+
+
 
 
 
 #########################################################################
-### PLOT THE THREE DATASETS TOGETHER ON ONE GRAPH
+### PLOT THE 3 DATASETS TOGETHER ON ONE GRAPH
 #########################################################################
-plotdat<-bind_rows(nhooksSummaryNAM,nhooksSummaryJR,nhooksSummaryICCAT) %>%
+plotdat<-bind_rows(nhooksSummaryNAM,nhooksSummaryICCAT,NAMtrawlsummary,URUtrawlsummary,RSAdemersalsummary) %>%
   group_by(Data) %>%
   mutate(scaledEff=scale(N)) %>%
   filter(Year>start)
@@ -849,9 +927,40 @@ counts %>% filter(Species==SP) %>%
   ggplot(aes(x=Year,y=N)) +
   geom_point(size=2, color='green')+
   geom_smooth(color='green', fill='green',alpha=0.2)+
+  geom_point(data=NAMtrawlsummary[NAMtrawlsummary$Year>1980,], aes(x=Year, y=N/10000),color='red', shape=16, size=2)+
+  geom_smooth(data=NAMtrawlsummary[NAMtrawlsummary$Year>1980,], aes(x=Year, y=N/10000),color='red', fill='red',alpha=0.2)+
+
+  theme(panel.background=element_rect(fill="white", colour="black"),
+        axis.text=element_text(size=18, color="black"),
+        axis.title=element_text(size=20),
+        strip.text.x=element_text(size=18, color="black"),
+        strip.background=element_rect(fill="white", colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank()) +
+  ylab("Million hours trawling in Namibia") +
+  xlab("Year")
+
+#ggsave("AYNA_NAMtrawl_trend_plot.jpg", width=12, height=9)
+
+
+
+
+counts %>% filter(Species==SP) %>%
+  mutate(Colony= as.character(Colony)) %>%
+  mutate(Year=year(Date)) %>%
+  filter(Colony=="Area 1") %>%
+  filter(Breed_Stage=="INCU") %>%
+  filter(Cohort %in% c("INCU","TERR","AON")) %>%
+  group_by(Year,Colony) %>%
+  summarise(N=sum(Number, na.rm=T)) %>%
+
+  ggplot(aes(x=Year,y=N)) +
+  geom_point(size=2, color='green')+
+  geom_smooth(color='green', fill='green',alpha=0.2)+
   geom_point(data=longline, aes(x=Year, y=n_hooks/5000000),color='red', shape=16, size=2)+
   geom_smooth(data=longline, aes(x=Year, y=n_hooks/5000000),color='red', fill='red',alpha=0.2)+
-
+  
   theme(panel.background=element_rect(fill="white", colour="black"),
         axis.text=element_text(size=18, color="black"),
         axis.title=element_text(size=20),
@@ -864,8 +973,6 @@ counts %>% filter(Species==SP) %>%
   xlab("Year")
 
 #ggsave("AYNA_ICCAT_trend_plot.jpg", width=12, height=9)
-
-
 
 
 
