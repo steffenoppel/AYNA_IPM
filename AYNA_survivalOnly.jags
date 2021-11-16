@@ -1,0 +1,135 @@
+
+
+model {
+    #-------------------------------------------------
+    # integrated population model for the Gough AYNA population
+    # - age structured model with 30 age classes 
+    # - adult survival based on CMR ringing data
+    # - pre breeding census, female-based assuming equal sex ratio & survival
+    # - productivity based on all areas incu and chick counts
+    # - linked population process with SUM OF count data
+    # - v4 includes 3 scenarios of future projection: no change, improved fecundity, reduced adult survival
+    # - marray_v1 uses marray for survival estimation to speed up computation time
+    # -------------------------------------------------
+    
+#-------------------------------------------------  
+# 1. PRIORS FOR ALL DATA SETS
+#-------------------------------------------------
+    
+    
+    # -------------------------------------------------        
+    # 1.3. Priors and constraints FOR SURVIVAL
+    # -------------------------------------------------
+    
+    ### RECAPTURE PROBABILITY
+    mean.p.ad[1] ~ dunif(0.0, 0.73)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
+    mean.p.ad[2] ~ dunif(0.2, 1)	           # Prior for mean adult recapture - should be higher than 20%
+
+    for (gy in 1:2){    ## for good and poor monitoring years
+      # TODO - could put more informative priors here
+      # but also note that the uniform prior on the logit scale is informative
+      #mean.p.juv[gy] ~ dunif(-2, 0)	         # Prior for mean juvenile recapture - should be higher than 20% if they survive!
+      mu.p.juv[gy] ~ dnorm(-4, 4) # Logit transformation
+      #mu.p.juv[gy] ~ log(mean.p.juv[gy] / (1-mean.p.juv[gy])) # Logit transformation
+      mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
+    }
+    
+    # this prior makes no sense
+    agebeta ~ dnorm(1,1000)    # Prior for shape of increase in juvenile recapture probability with age
+    
+    
+    # beta.ICCAT.ll.e ~ dnorm(0, 1)  # TODO - change precison?
+    # beta.ICCAT.ll.mit ~ dnorm(0, 1)  # TODO - change precison?
+    # beta.Nam.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+    # beta.SA.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+    # beta.Uru.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+
+    ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY OF JUVENILES
+    for (t in 1:(n.occasions-1)){
+      for (j in 1:t){ ## zero by definition (these are never actually used)
+        p.juv[t,j] <- 0
+      }
+      for (j in (t+1):(n.occasions-1)){
+        logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
+        #logit(p.juv[t,j])  <- agebeta*(j - t) + eps.p[j]
+
+      }
+    }
+    
+    ## PRIORS FOR RANDOM EFFECTS
+    sigma.p ~ dexp(0.75)                # Prior for standard deviation
+    tau.p <- pow(sigma.p, -2)
+    
+    
+    ### SURVIVAL PROBABILITY
+    mean.phi.juv ~ dbeta(75.7,24.3)             # Prior for mean juvenile survival first year 0.757, second year 0.973 in Laysan albatross
+    mean.phi.ad ~ dbeta(91,9)              # Prior for mean adult survival - should be higher than 70%
+    mu.juv <- log(mean.phi.juv / (1-mean.phi.juv)) # Logit transformation
+    mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
+    
+    ## PRIORS FOR RANDOM EFFECTS
+    sigma.phi ~ dexp(1.5)                # Prior for standard deviation
+    tau.phi <- pow(sigma.phi, -2)
+    
+    ## RANDOM TIME EFFECT ON SURVIVAL AND ADULT RECAPTURE
+    # TODO - add additional covariates wrt to fishing effory and bycatch mitigation
+    for (j in 1:(n.occasions-1)){
+      logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] #+ beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
+      logit(phi.ad[j]) <- mu.ad + eps.phi[j] #+ beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
+      eps.phi[j] ~ dnorm(0, tau.phi) 
+      logit(p.ad[j])  <- mu.p.ad[goodyear[j]] + eps.p[j]    #### CAT HORSWILL SUGGESTED TO HAVE A CONTINUOUS EFFORT CORRECTION: mu.p.ad + beta.p.eff*goodyear[j] + eps.p[j]
+      eps.p[j] ~ dnorm(0, tau.p)
+    }
+    
+    
+    
+#-------------------------------------------------  
+# 2. LIKELIHOODS AND ECOLOGICAL STATE MODEL
+#-------------------------------------------------
+    
+    
+    # -------------------------------------------------        
+    # 2.4. Likelihood for adult and juvenile survival from CMR
+    # -------------------------------------------------
+    
+    # Define the multinomial likelihood
+    for (t in 1:(n.occasions-1)){
+      marr.j[t,1:n.occasions] ~ dmulti(pr.j[t,], r.j[t])
+      marr.a[t,1:n.occasions] ~ dmulti(pr.a[t,], r.a[t])
+    }
+    
+    
+    # Define the cell probabilities of the m-arrays
+    # Main diagonal
+    for (t in 1:(n.occasions-1)){
+      q.ad[t] <- 1-p.ad[t]            # Probability of non-recapture
+    
+      for(j in 1:(n.occasions-1)){
+        q.juv[t,j] <- 1 - p.juv[t,j]
+      }    
+    
+      pr.j[t,t] <- 0
+      pr.a[t,t] <- phi.ad[t]*p.ad[t]
+    
+      # Above main diagonal
+      for (j in (t+1):(n.occasions-1)){
+        pr.j[t,j] <- phi.juv[t]*prod(phi.ad[(t+1):j])*prod(q.juv[t,t:(j-1)])*p.juv[t,j]
+        pr.a[t,j] <- prod(phi.ad[t:j])*prod(q.ad[t:(j-1)])*p.ad[j]
+      } #j
+    
+      # Below main diagonal
+      for (j in 1:(t-1)){
+        pr.j[t,j] <- 0
+        pr.a[t,j] <- 0
+      } #j
+    } #t
+    
+    # Last column: probability of non-recapture
+    for (t in 1:(n.occasions-1)){
+      pr.j[t,n.occasions] <- 1-sum(pr.j[t,1:(n.occasions-1)])
+      pr.a[t,n.occasions] <- 1-sum(pr.a[t,1:(n.occasions-1)])
+    } #t
+    
+}  ## end model loop
+
+
