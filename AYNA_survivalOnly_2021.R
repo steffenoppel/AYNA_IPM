@@ -385,10 +385,8 @@ ggplot(as.data.frame(survival_posteriors[1:36, ]), aes(x=1985:2020,y=apply(survi
         panel.border = element_blank())
 
 survival_posteriors.juvs <- AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"phi.juv\\[")][[1]]
-ggplot(as.data.frame(survival_posteriors.juvs[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors.juvs,2, median))) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
-
-
-
+ggplot(as.data.frame(survival_posteriors.juvs[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors.juvs,2, median))) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') +
+  geom_line(data = PROD.DAT, aes(x = Year, y = R/400))
 
 summary_AYNAipm_df <- as.data.frame(summary_AYNAipm)
 View(summary_AYNAipm_df)
