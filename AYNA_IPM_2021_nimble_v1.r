@@ -200,31 +200,31 @@ code <- nimbleCode({
   ## CALCULATIONS ARE EST POP SIZE * EST BREEDING SUCCESS  * EST JUV SURVIVAL * EST ADULT SURVIVAL^N.YEARS
 
   
-  IM[1,1,1] ~ T(dnorm(263,sd = 40), 0, 1000)   ### number of 1-year old survivors in 2007 (700*0.5*0.75) - CAN BE MANIPULATED
+  IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, 1000)   ### number of 1-year old survivors in 2007 (700*0.5*0.75) - CAN BE MANIPULATED
   IM[1,1,2] <- 0
   IM[1,1,3] <- IM[1,1,1] - IM[1,1,2]
   
-  IM[1,2,1] ~ T(dnorm(275,sd = 20), 0, 1000)   ### number of 2-year old survivors in 2006 (680*0.6*0.75*0.9) CAN BE MANIPULATED
+  IM[1,2,1] ~ T(dnorm(275/2,sd = 20), 0, 1000)   ### number of 2-year old survivors in 2006 (680*0.6*0.75*0.9) CAN BE MANIPULATED
   IM[1,2,2] <- IM[1,2,1]*p.juv.recruit.f[2]
   IM[1,2,3] <- IM[1,2,1] - IM[1,2,2]
   
-  IM[1,3,1] ~ T(dnorm(264,sd = 40), 0, 1000)   ### number of 3-year old survivors in 2005 (680*0.64*0.75*0.9^2) - CAN BE MANIPULATED
+  IM[1,3,1] ~ T(dnorm(264/2,sd = 20), 0, 1000)   ### number of 3-year old survivors in 2005 (680*0.64*0.75*0.9^2) - CAN BE MANIPULATED
   IM[1,3,2] <- IM[1,3,1]*p.juv.recruit.f[3]
   IM[1,3,3] <- IM[1,3,1] - IM[1,3,2]
   
-  IM[1,4,1] ~ T(dnorm(177,sd = 20), 0, 1000)   ### number of 4-year old survivors in 2004 (540*0.6*0.75*0.9^3) - CAN BE MANIPULATED
+  IM[1,4,1] ~ T(dnorm(177/2,sd = 20), 0, 1000)   ### number of 4-year old survivors in 2004 (540*0.6*0.75*0.9^3) - CAN BE MANIPULATED
   IM[1,4,2] <- IM[1,4,1]*p.juv.recruit.f[4]
   IM[1,4,3] <- IM[1,4,1] - IM[1,4,2]
   
-  IM[1,5,1] ~ T(dnorm(290,sd = 20), 0, 1000)   ### number of 5-year old survivors in 2003 (709*0.83*0.75*0.9^4) - CAN BE MANIPULATED
+  IM[1,5,1] ~ T(dnorm(290/2,sd = 20), 0, 1000)   ### number of 5-year old survivors in 2003 (709*0.83*0.75*0.9^4) - CAN BE MANIPULATED
   IM[1,5,2] <- IM[1,5,1]*p.juv.recruit.f[5]
   IM[1,5,3] <- IM[1,5,1] - IM[1,5,2]
   
-  IM[1,6,1] ~ T(dnorm(90,sd = 20), 0, 1000)    ### number of 6-year old survivors in 2002 (600*0.34*0.75*0.9^5) - CAN BE MANIPULATED
+  IM[1,6,1] ~ T(dnorm(90/2,sd = 20), 0, 1000)    ### number of 6-year old survivors in 2002 (600*0.34*0.75*0.9^5) - CAN BE MANIPULATED
   IM[1,6,2] <- IM[1,6,1]*p.juv.recruit.f[6]
   IM[1,6,3] <- IM[1,6,1] - IM[1,6,2]
   
-  IM[1,7,1] ~ T(dnorm(158,sd = 20), 0, 1000)   ### number of 7-year old survivors in 2001 (650*0.61*0.75*0.9^6) - CAN BE MANIPULATED
+  IM[1,7,1] ~ T(dnorm(158/2,sd = 20), 0, 1000)   ### number of 7-year old survivors in 2001 (650*0.61*0.75*0.9^6) - CAN BE MANIPULATED
   IM[1,7,2] <- IM[1,7,1]*p.juv.recruit.f[7]
   IM[1,7,3] <- IM[1,7,1] - IM[1,7,2]
   
@@ -236,7 +236,7 @@ code <- nimbleCode({
   N.recruits[1] <- sum(IM[1,1:30,2])  ### number of this years recruiters - irrelevant in year 1 as already included in Ntot.breed prior
   
   Ntot.breed[1] ~ T(dnorm(640,sd = 50), 0, Inf)  ### sum of counts is 640 ( sum(POP[1, ]) <- across 11 study areas )
-  JUV[1] ~ T(dnorm(232, sd = 50), 0, Inf)          ### sum of chicks is 232 ( sum(mean.props[1, c(1,2,4,5)]) <- only 4 study areas counted, so correct w proportion )
+  JUV[1] ~ T(dnorm(232/2, sd = 50), 0, Inf)          ### sum of chicks is 232 ( sum(mean.props[1, c(1,2,4,5)]) <- only 4 study areas counted, so correct w proportion )
   N.atsea[1] ~ T(dnorm(224,sd = 20), 0, Inf)    ### unknown number, but assume about 65% breeding each year per Cuthbert 2003 (sum(POP[1, ]) * (1-0.65)) - CAN BE MANIPULATED
   Ntot[1]<-sum(IM[1,1:30,3]) + Ntot.breed[1]+N.atsea[1]  ## total population size is all the immatures plus adult breeders and adults at sea - does not include recruits in Year 1
   
@@ -493,8 +493,8 @@ code <- nimbleCode({
   # 
   #   ## DERIVED MEAN FUTURE GROWTH RATE
   #   fut.growth.rate[scen] <- exp((1/(FUT.YEAR-1))*sum(log(fut.lambda[scen,1:(FUT.YEAR-1)])))   # Geometric mean
-
-  } # end future projection scenarios
+  #
+  #} # end future projection scenarios
   
 })
 
@@ -564,26 +564,38 @@ p.juv.recruit.inits <- plogis(-4 + 1:30/2)
 # IMinits[1,, 1:3]
 
 IMinits <- array(NA, dim = c(n.years.count, 30, 3))
-IMinits[,1,1] = c(rnorm(n.years.count, 263, 20)) # TODO change sd???
-IMinits[,2,1] = c(rnorm(n.years.count, 275, 20))
-IMinits[,3,1] = c(rnorm(n.years.count, 264, 20))
-IMinits[,4,1] = c(rnorm(n.years.count, 177, 20))
-IMinits[,5,1] = c(rnorm(n.years.count, 290, 20))
-IMinits[,6,1] = c(rnorm(n.years.count, 90, 20))
-IMinits[,7,1] = c(rnorm(n.years.count, 158, 20))
+IMinits[,1,1] = c(rnorm(n.years.count, 263/2, 20)) # TODO change sd???
+IMinits[1,2,1] = c(rnorm(1, 275/2, 20))
+IMinits[1,3,1] = c(rnorm(1, 264/2, 20))
+IMinits[1,4,1] = c(rnorm(1, 177/2, 20))
+IMinits[1,5,1] = c(rnorm(1, 290/2, 20))
+IMinits[1,6,1] = c(rnorm(1, 90/2, 20))
+IMinits[1,7,1] = c(rnorm(1, 158/2, 20))
 
 for (age in 1:7) {
-  IMinits[, age, 2] <- IMinits[, age, 1] * p.juv.recruit.inits[age]
-  IMinits[, age, 3] <- IMinits[,age,1] - IMinits[,age,2]
+  IMinits[, age, 2] <- IMinits[1, age, 1] * p.juv.recruit.inits[age]
+  IMinits[, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
 }
 
 for (age in 8:30) {
-  IMinits[,age,1] = c(IMinits[, age-1, 3] * 0.9)
-  IMinits[, age, 2] <- IMinits[, age, 1] * p.juv.recruit.inits[age]
-  IMinits[, age, 3] <- IMinits[,age,1] - IMinits[,age,2]
+  IMinits[1,age,1] = c(IMinits[1, age-1, 3] * 0.9)
+  IMinits[1, age, 2] <- IMinits[1, age, 1] * p.juv.recruit.inits[age]
+  IMinits[1, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
 }
-IMinits[,, 1:3]
 
+for (tt in 2:n.years.count) {
+  # TODO fill in
+  IMinits[tt, 2, 1] <- IMinits[tt-1, 1, 3] * 0.75  # survive with juvenile rate
+  IMinits[tt, 2, 2] <- IMinits[tt, 2, 1] * p.juv.recruit.inits[2]
+  IMinits[tt, 2, 3] <- IMinits[tt,2,1] - IMinits[tt,2,2]
+  for (age in 3:30) {
+    IMinits[tt, age, 1] <- IMinits[tt-1, age-1, 3]*0.9
+    IMinits[tt, age, 2] <- IMinits[tt, age, 1] * p.juv.recruit.inits[age]
+    IMinits[tt, age, 3] <- IMinits[tt,age,1] - IMinits[tt,age,2]
+  }
+}
+IMinits <- IMinits+1 # to avoid initializing some nodes to zero (infinite log prob)
+IMinits[,, 1]
 
 inits <- list(sigma.phi = rexp(1, 1),
               mean.phi.ad = rbeta(1, 91,9) ,
@@ -591,9 +603,10 @@ inits <- list(sigma.phi = rexp(1, 1),
               mean.p.ad = c(runif(1, 0.0, 0.5), runif(1, 0.2, 1)),
               sigma.p = rexp(1, 2), 
               mu.p.juv = rnorm(2, -4, 0.5),
-              Ntot.breed= c(rnorm(1, 640, sd = 20),rep(NA,n.years.fec-1)), # TODO change this
-              JUV= c(rnorm(1, 232, sd = 20),rep(100,n.years.fec-1)), # TODO change this
-              N.atsea= c(rnorm(1, 224, sd = 20),rep(NA,n.years.fec-1)), # TODO change this
+              Ntot.breed= c(rnorm(1, 640, sd = 20),rep(NA,n.years.fec-1)),
+              nestlings = round(640*0.5*rep(0.7, n.years.fec)),
+              #JUV= c(rnorm(1, 232, sd = 20),rep(100,n.years.fec-1)), # TODO change this
+              N.atsea= c(rnorm(1, 224, sd = 20),rep(NA,n.years.fec-1)), 
               #beta.fe = rnorm(1, 0, 1),
               agebeta = rnorm(1, 1, 0.01),    
               # maybe better to not do this below
@@ -614,17 +627,17 @@ params <- c(
   "Ntot", "Ntot.breed", "N.atsea", 
   "sigma.obs", 
   # DERIVED
-  "pop.growth.rate", "lambda",
+  "pop.growth.rate", "lambda"#,
   # FUTURE
-  "fut.growth.rate", "fut.lambda", 
-  "Nobs.f"
+  #"fut.growth.rate", "fut.lambda", 
+  #"Nobs.f"
   )
 
 #### MCMC SETTINGS ####
 nb <- 1 #burn-in
 ni <- 5000 + nb #total iterations
 nt <- 1  #thin
-nc <- 3  #chains
+nc <- 1  #chains
 adaptInterval = 100
 maxContractions = 1000
 
@@ -636,8 +649,6 @@ conf <- configureMCMC(Rmodel, monitors = params, thin = nt,
                                       adaptInterval = adaptInterval)) # SLOWW
 conf$printSamplers(type = "conjugate")
 conf$printSamplers(type = "posterior") # check sampler defaults
-
-nodesWithSliceSamplers <- conf$samplerConfs
 
 # conf$removeSamplers("ann.fec")
 # conf$addSampler(target = "ann.fec[1]", type="conjugate")
@@ -654,9 +665,6 @@ nodesWithSliceSamplers <- conf$samplerConfs
 
 # Ntot breed N at see highly correlated
 # juveniles and annual fecundity
-
-## example
-)
 
 Rmcmc <- buildMCMC(conf)  
 Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
