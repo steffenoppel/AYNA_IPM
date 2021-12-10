@@ -134,7 +134,7 @@ model {
     # -------------------------------------------------
     
     ### RECAPTURE PROBABILITY
-    mean.p.ad[1] ~ dunif(0.0, 0.5)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
+    mean.p.ad[1] ~ dunif(0.0, 0.73)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
     mean.p.ad[2] ~ dunif(0.2, 1)	           # Prior for mean adult recapture - should be higher than 20%
 
     for (gy in 1:2){    ## for good and poor monitoring years
@@ -169,7 +169,7 @@ model {
     }
     
     ## PRIORS FOR RANDOM EFFECTS
-    sigma.p ~ dexp(2)                # Prior for standard deviation
+    sigma.p ~ dexp(0.75)                # Prior for standard deviation
     tau.p <- pow(sigma.p, -2)
     
     
@@ -180,7 +180,7 @@ model {
     mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
     
     ## PRIORS FOR RANDOM EFFECTS
-    sigma.phi ~ dexp(1)                # Prior for standard deviation
+    sigma.phi ~ dexp(1.5)                # Prior for standard deviation
     tau.phi <- pow(sigma.phi, -2)
     
     ## RANDOM TIME EFFECT ON SURVIVAL AND ADULT RECAPTURE
@@ -354,17 +354,17 @@ View(summary(AYNAipm))
 
 
 
-covariates <- rbind(AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[1]],
-                        AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[2]],
-                        AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[3]]
-)
-
-par(mfrow =c(2,3))
-for(i in 1:dim(covariates)[2]) {
-  hist(covariates[, i], main = colnames(covariates)[i])
-  abline(v = 0, col = "red")
-}
-par(mfrow = c(1,1))                     
+# covariates <- rbind(AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[1]],
+#                         AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[2]],
+#                         AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"beta")][[3]]
+# )
+# 
+# par(mfrow =c(2,3))
+# for(i in 1:dim(covariates)[2]) {  ## this will create 50,000 plots!!!
+#   hist(covariates[, i], main = colnames(covariates)[i])
+#   abline(v = 0, col = "red")
+# }
+# par(mfrow = c(1,1))                     
 
 # monitor annual survival values and plot against whether it's a good or bad year
 goodyears$p.sel
@@ -372,13 +372,21 @@ goodyears$prop.seen
 library(stringr)
 
 survival_posteriors <- AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"phi.ad\\[")][[1]]
-ggplot(as.data.frame(survival_posteriors[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors,2, median))) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
+ggplot(as.data.frame(survival_posteriors[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors,2, median))) +
+  geom_point(size=2, color='darkred')+geom_smooth(method='lm')+
+  xlab("Year") +
+  ylab("Annual adult survival probability") +
+  
+  theme(panel.background=element_rect(fill="white", colour="black"), 
+        axis.text=element_text(size=14, color="black"), 
+        axis.title=element_text(size=16), 
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank())
 
 survival_posteriors.juvs <- AYNAipm$mcmc[, str_detect(colnames(AYNAipm$mcmc[[1]]),"phi.juv\\[")][[1]]
-ggplot(as.data.frame(survival_posteriors.juvs[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors.juvs,2, median))) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') 
-
-
-
+ggplot(as.data.frame(survival_posteriors.juvs[1:36, ]), aes(x=1985:2020,y=apply(survival_posteriors.juvs,2, median))) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') +
+  geom_line(data = PROD.DAT, aes(x = Year, y = R/400))
 
 summary_AYNAipm_df <- as.data.frame(summary_AYNAipm)
 View(summary_AYNAipm_df)

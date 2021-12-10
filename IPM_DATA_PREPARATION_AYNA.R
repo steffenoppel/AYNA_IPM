@@ -179,7 +179,8 @@ dim(CHICKCOUNT)
 
 ### PLOT TO SPOT ANY OUTLIERS OF COUNT DATA
 BS %>% mutate(Year=ADCOUNT$Year) %>% gather(key="Colony",value="N",-Year) %>% group_by(Year) %>% summarise(SUCCESS=mean(N, na.rm=T)) %>% ##ungroup() %>% summarise(avg=median(SUCCESS, na.rm=T),low=min(SUCCESS, na.rm=T),hi=max(SUCCESS, na.rm=T))
-ggplot(aes(x=Year,y=SUCCESS)) +geom_point(size=2, color='darkred')+geom_smooth(method='lm') + 
+ggplot(aes(x=Year,y=SUCCESS)) +geom_point(size=2, color='darkred')+#geom_smooth(method='lm') + 
+  geom_smooth(method="lm",formula = y ~ x + I(x^2), colour="red", size=1.5, fill="indianred1", alpha=0.2) +
 theme(panel.background=element_rect(fill="white", colour="black"),  
       axis.text=element_text(size=18, color="black"), 
       axis.title=element_text(size=20),  
@@ -219,6 +220,7 @@ bands<-bands %>% filter(SpeciesCode==SP)
 head(contacts)  ## CMR data
 dim(contacts)
 unique(contacts$Contact_Year)
+unique(contacts$Location)
 
 contacts %>% filter(BirdID=="GO-16-18-556")
 
@@ -436,7 +438,6 @@ ggplot() + geom_bar(aes(x=Contact_Year,y=prop.seen, fill=Effort), stat="identity
 contacts %>% filter(Contact_Season=="1995-96") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
 contacts %>% filter(Contact_Season=="1995-96") %>% group_by(Nest_Description) %>% summarise(n=length(unique(BirdID))) %>%
   ungroup() %>% group_by(n) %>% summarise(nests=length(unique(Nest_Description)))
-60/82
 
 ### comparatively normal season
 contacts %>% filter(Contact_Season=="1996-97") %>% group_by(BirdID) %>% summarise(n=length(unique(ContactID)))
@@ -673,7 +674,7 @@ ggplot(RECRUIT.AGE) + geom_bar(aes(x=age,y=prop),stat='identity', fill='cornflow
 
 
 ### IDENTIFY THE CONTACTS OF AGE <4 TO DOUBLE-CHECK IN DATABASE
-DOUBLE_CHECK<-contacts %>% filter(ContAge %in% c(1:5)) %>%
+DOUBLE_CHECK<-contacts %>% filter(ContAge %in% c(1:2)) %>%
   arrange(BirdID,Date_Time)
 
 contacts %>% filter(BirdID %in% unique(DOUBLE_CHECK$BirdID)) %>%
@@ -681,7 +682,7 @@ contacts %>% filter(BirdID %in% unique(DOUBLE_CHECK$BirdID)) %>%
 
 
 
-## Bird ID GO84764 with ring 835173 has dubious contact in 1996 - changed in database
+## Bird ID GO84764 with ring 835173 has dubious contact in 1996 - but seems legitimate in database
 
 
 #############################################################################
