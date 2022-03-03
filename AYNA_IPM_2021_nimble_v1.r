@@ -198,7 +198,7 @@ code <- nimbleCode({
   ## BASED ON WANLESS PAPER, JUVENILES SURVIVE ON AVERAGE WITH RATE 0.757, ADULTS 0.973
   ## GIVES ROUGH ESTIMATE OF EXPECTED NUMBER IN EACH AGE CLASS
   ## CALCULATIONS ARE EST POP SIZE * EST BREEDING SUCCESS  * EST JUV SURVIVAL * EST ADULT SURVIVAL^N.YEARS
-
+  ## TODO - recall it may be useful to start these really high (but same proportional relationships)
   
   IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, 1000)   ### number of 1-year old survivors in 2007 (700*0.5*0.75) - CAN BE MANIPULATED
   IM[1,1,2] <- 0
@@ -305,6 +305,8 @@ code <- nimbleCode({
     ## Observation process
 
     for (t in 1:n.years.fec){
+      # TODO - consider lognormal here because of low counts in some site-years
+      # TODO - could also eliminate site loop here instead
       y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[t,s], sd = sigma.obs[s,t])								# Distribution for random error in observed numbers (counts)
     }														# run this loop over t= nyears
   }		## end site loop
