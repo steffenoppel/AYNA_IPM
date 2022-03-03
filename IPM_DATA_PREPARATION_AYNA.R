@@ -221,6 +221,7 @@ head(contacts)  ## CMR data
 dim(contacts)
 unique(contacts$Contact_Year)
 unique(contacts$Location)
+unique(contacts$Breeding_StatusID)
 
 contacts %>% filter(BirdID=="GO-16-18-556")
 
@@ -469,8 +470,18 @@ contacts %>% filter(Age=="Chick") %>% filter(Contact_Season=="1995-96") %>% filt
 #############################################################################
 head(contacts)
 
+
+#### CONVERT BREEDING STATUS INTO TWO STATES: 1 = known breeding or 2 = not breeding or unknown
+table(contacts$Breeding_StatusID)
+contacts<- contacts %>%
+  mutate(BreedState=ifelse(is.na(Nest_Description),
+                           ifelse(Breeding_StatusID %in% c(1,1899636611,1899636612,1899636613,1899636615,1899636617,1899636618),1,2),1))
+table(contacts$BreedState)
+
+
 ### SIMPLE BINARY ENCOUNTER HISTORY FOR CHICKS AND ADULTS
 # 1 represents resighted or recaptured, 2 represents dead recovery, 0 not observed
+# NEEDS RECODING TO INCLUDE BREEDER / NON-BREEDER STATE ASSIGNMENT?
 AYNA_CHICK<- contacts %>% mutate(count=if_else(Contact_Type == "Recovery", 2, 1)) %>% # AEB changed this 11 Nov 2021 to account for dead recoveries
   filter(FIRST_AGE %in% c("Chick","Fledgling")) %>%
   filter(Contact_Type != "Recovery") %>% 
