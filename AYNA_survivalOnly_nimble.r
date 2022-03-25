@@ -123,25 +123,28 @@ code <- nimbleCode({
   # remove some of the hardcoding
   # add covariates
   
-  #-------------------------------------------------  
-  # 1. PRIORS FOR ALL DATA SETS
-  #-------------------------------------------------
-  
-  
   # -------------------------------------------------        
   # 1.3. Priors and constraints FOR SURVIVAL
   # -------------------------------------------------
   
   ### RECAPTURE PROBABILITY
+  mean.p.ad[1] ~ dunif(0.05, 0.5)	           # Prior for mean adult recapture - should be higher than 5% but less than 50%
+  mean.p.ad[2] ~ dunif(0.2, 1)	           # Prior for mean adult recapture - should be higher than 20%
+  
   for (gy in 1:2){    ## for good and poor monitoring years
-    # TODO - could put more informative priors here
-    #mean.p.juv[gy] ~ dunif(0, 0.01)	         # Prior for mean juvenile recapture - should be higher than 20% if they survive!
-    mean.p.ad[gy] ~ dunif(0.2, 1)	           # Prior for mean adult recapture - should be higher than 20%
-    #mu.p.juv[gy] <- log(mean.p.juv[gy] / (1-mean.p.juv[gy])) # Logit transformation
+    mu.p.juv[gy] ~ dnorm(-4, sd = 0.25) # Logit scale prior for mean juvenile recapture - should be almost 0 at age 1 and increase with age/2
     mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
   }
-  agebeta ~ dunif(0,1)    # Prior for shape of increase in juvenile recapture probability with age
-  beta.fe ~ dnorm(0, sd = 1)  # TODO - change precison?
+  
+  agebeta ~ dnorm(1, sd = 0.001)    # Prior for shape of increase in juvenile recapture probability with age
+
+  # TODO 
+  # fix this
+  # beta.ICCAT.ll.e ~ dnorm(0, 1)  # TODO - change precison?
+  # beta.ICCAT.ll.mit ~ dnorm(0, 1)  # TODO - change precison?
+  # beta.Nam.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+  # beta.SA.ll.mit ~ dnorm(0, 1) # TODO - change precison?
+  # beta.Uru.ll.mit ~ dnorm(0, 1) # TODO - change precison?
   
   ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY OF JUVENILES
   for (t in 1:(n.occasions-1)){
@@ -149,16 +152,12 @@ code <- nimbleCode({
       p.juv[t,j] <- 0
     }
     for (j in (t+1):(n.occasions-1)){
-      #logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t) + eps.p[j]
-      logit(p.juv[t,j])  <-  agebeta*(j - t) + eps.p[j]
-      
+      logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
     }
   }
   
   ## PRIORS FOR RANDOM EFFECTS
   sigma.p ~ dexp(1)                # Prior for standard deviation
-  tau.p <- pow(sigma.p, -2)
-  
   
   ### SURVIVAL PROBABILITY
   mean.phi.juv ~ dbeta(75.7,24.3)             # Prior for mean juvenile survival first year 0.757, second year 0.973 in Laysan albatross
@@ -168,25 +167,21 @@ code <- nimbleCode({
   
   ## PRIORS FOR RANDOM EFFECTS
   sigma.phi ~ dexp(1)                # Prior for standard deviation
-  tau.phi <- pow(sigma.phi, -2)
   
   ## RANDOM TIME EFFECT ON SURVIVAL AND ADULT RECAPTURE
   
   for (j in 1:(n.occasions-1)){
-    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] #+ beta.fe*longline[j] 
-    logit(phi.ad[j]) <- mu.ad + eps.phi[j] #+ beta.fe*longline[j]
+    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] #+ beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
+    logit(phi.ad[j]) <- mu.ad + eps.phi[j] #+ beta.ICCAT.ll.e*ICCAT.ll.e[j] + beta.ICCAT.ll.mit*ICCAT.ll.mit[j] + beta.Nam.ll.mit*Nam.ll.mit[j] + beta.SA.ll.mit*SA.ll.mit[j] + beta.Uru.ll.mit*Uru.ll.mit[j]
     eps.phi[j] ~ dnorm(0, sd = sigma.phi) 
     logit(p.ad[j])  <- mu.p.ad[goodyear[j]] + eps.p[j]    #### CAT HORSWILL SUGGESTED TO HAVE A CONTINUOUS EFFORT CORRECTION: mu.p.ad + beta.p.eff*goodyear[j] + eps.p[j]
     eps.p[j] ~ dnorm(0, sd = sigma.p)
   }
   
-  
-  
   #-------------------------------------------------  
   # 2. LIKELIHOODS AND ECOLOGICAL STATE MODEL
   #-------------------------------------------------
   
-
   # -------------------------------------------------        
   # 2.4. Likelihood for adult and juvenile survival from CMR
   # -------------------------------------------------
@@ -196,7 +191,6 @@ code <- nimbleCode({
     marr.j[t,1:n.occasions] ~ dmulti(pr.j[t,1:n.occasions], r.j[t])
     marr.a[t,1:n.occasions] ~ dmulti(pr.a[t,1:n.occasions], r.a[t])
   }
-  
   
   # Define the cell probabilities of the m-arrays
   # Main diagonal
@@ -233,80 +227,39 @@ code <- nimbleCode({
 
 #### DATA ####
 dat <- list(marr.j = chick.marray,
-            marr.a = adult.marray#,
-            
-            #y.count=POP,    ### use log(R) here if using the logscale model
-            
-            ### breeding success data
-            #J=PROD.DAT$J,
-            #R=PROD.DAT$R
-            
-            ## future fecundity change - vector with one element for each scenario
-) 
+            marr.a = adult.marray) 
 
 #### CONSTANTS ####
 const <- list(n.occasions = length(start:2021),
-              #offset = OFFSET, # difference in start times between population process (2008) and cmr data (1982)
               r.j=apply(chick.marray,1,sum),
               r.a=apply(adult.marray,1,sum),
               goodyear=goodyears$p.sel,
-              #goodyear=goodyears$prop.seen,   ### if using a continuous effort correction
               juv.poss=phi.juv.possible$JuvSurv#, ### sets the annual survival of juveniles to the mean if <70 were ringed
-              
-              ### count data
-              # n.sites.count=n.sites.count,
-              # n.years.count= n.years.count,
-              # prop.sites=mean.props,  ### need to calculate
-              # 
-              # n.sites.fec=n.sites.fec,
-              # n.years.fec= n.years.fec,
-              # 
-              # ### longline effort data
-              # longline=longline$n_hooks %>% as.numeric(),
-              # 
-              # # ### FUTURE PROJECTION
-              # FUT.YEAR=30,  ### for different scenarios future starts at 1
-              # n.scenarios=1,
-              # fut.surv.change=as.matrix(fut.surv.change[,2]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
-              # fut.fec.change=rep(1, 30)  
 )
 
 #### INITIAL VALUES ####
+
 inits <- list(sigma.phi = rexp(1, 1),
               mean.phi.ad = rbeta(1, 91,9) ,
-              mean.p.ad = runif(2, 0.2, 1),
+              mean.phi.juv = rbeta(1, 75.7, 24.3),
               sigma.p = rexp(1, 1), 
-              #Ntot.breed= c(rnorm(1, 640, sd = 20),rep(NA,n.years.fec-1)), # TODO change this
-              #JUV= c(rnorm(1, 232, sd = 20),rep(NA,n.years.fec-1)), # TODO change this
-              #N.atsea= c(rnorm(1, 224, sd = 20),rep(NA,n.years.fec-1)), # TODO change this
-              beta.fe = rnorm(1, 0, 1),
-              agebeta = runif(1, 0, 1)#,    
-              # maybe better to not do this below
-              # IM[1:n.years.count,1,1] = c(rnorm(1, 263, 20),rep(NA,n.years.count-1)), # TODO change sd???
-              # IM[1:n.years.count,2,1] = c(rnorm(1, 275, 20),rep(NA,n.years.count-1)),
-              # IM[1:n.years.count,3,1] = c(rnorm(1, 264, 20),rep(NA,n.years.count-1)),
-              # IM[1:n.years.count,4,1] = c(rnorm(1, 177, 20),rep(NA,n.years.count-1)),
-              # IM[1:n.years.count,5,1] = c(rnorm(1, 290, 20),rep(NA,n.years.count-1)),
-              # IM[1:n.years.count,6,1] = c(rnorm(1, 90, 20),rep(NA,n.years.count-1)),
-              # IM[1:n.years.count,7,1] = c(rnorm(1, 158, 20),rep(NA,n.years.count-1)),
-              #####
-              #ann.fec = rbeta(n.years.fec, 32,68),
-              #sigma.obs=matrix(rexp(n.sites.count*n.years.count, 0.1),ncol=n.years.count)
+              agebeta = rnorm(1, 0, 0.001),
+              mean.p.ad = c(runif(1, 0.05, 0.5), runif(1, 0.2, 1)), 
+              mu.p.juv = rnorm(2, -4, 0.25)
 )
 
 #### PARAMETERS TO MONITOR ####
 # TODO check that this has everything 
-params <- c("mean.phi.ad","mean.phi.juv",#"mean.fec",
-            #"pop.growth.rate" ,#"fut.growth.rate", 
-            "agebeta",#"Ntot","Ntot.breed",
+params <- c("mean.phi.ad","mean.phi.juv",
+            "sigma.phi", "sigma.p",
+            "agebeta",
             "phi.ad","phi.juv",    
-            #"ann.fec", "sigma.obs",
-            "mean.p.ad"
+            "mean.p.ad", "mu.p.juv"
             )
 
 #### MCMC SETTINGS ####
-nb <- 1 #burn-in
-ni <- 50 + nb #total iterations
+nb <- 25000 #burn-in
+ni <- 20000 + nb #total iterations
 nt <- 1  #thin
 nc <- 3  #chains
 adaptInterval = 100
@@ -362,14 +315,22 @@ sink()
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
-error.vec <- read_lines("somanyerrors.txt")
-error.vec <- error.vec[!(str_detect(error.vec, "initializing") & 
-                           #str_detect(error.vec, "IM\\[") & 
-                           str_detect(error.vec, "Inf") |
-                           str_detect(error.vec, "lifted") | str_detect(error.vec, "slice") )
-] %>% unique() %>% sort()
-write_lines(error.vec, "somanyerrors.txt")
+# error.vec <- read_lines("somanyerrors.txt")
+# error.vec <- error.vec[!(str_detect(error.vec, "initializing") & 
+#                            #str_detect(error.vec, "IM\\[") & 
+#                            str_detect(error.vec, "Inf") |
+#                            str_detect(error.vec, "lifted") | str_detect(error.vec, "slice") )
+# ] %>% unique() %>% sort()
+# write_lines(error.vec, "somanyerrors.txt")
 
 #### MAKE BEAUTIFUL PLOTS AND STUFF ####
-summary(out)
-traceplot(out)
+pdf("survivalplots.pdf")
+plot(out)
+dev.off()
+
+geldiag <- gelman.diag(out, multivariate=FALSE)
+geldiag <- geldiag$psrf
+View(geldiag)
+
+summ <- summary(out) 
+View(summ$statistics)

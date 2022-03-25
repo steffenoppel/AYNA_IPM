@@ -25,7 +25,7 @@ select<-dplyr::select
 ### NOTE THAT SORT ORDER OF GONYDALE AND GP VALLEY HAS SHIFTED ON 15 Jan 2021 (due to switch to if_else on R4.0.2)
 
 ## LOAD PREPARED M-ARRAY FOR SURVIVAL ESTIMATION
-setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
+#setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
 load("AYNA_IPM_input.marray.RData")
 
 ## BOTH ARRAYS MUST HAVE EXACT SAME DIMENSIONS
