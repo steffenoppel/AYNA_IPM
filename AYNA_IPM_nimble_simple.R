@@ -555,10 +555,10 @@ params <- c(
 )
 
 #### MCMC SETTINGS ####
-nb <- 1 #burn-in
-ni <- 5000 + nb #total iterations
+nb <- 25000 #burn-in
+ni <- 200000 + nb #total iterations
 nt <- 1  #thin
-nc <- 1  #chains
+nc <- 3  #chains
 adaptInterval = 100
 maxContractions = 1000
 
