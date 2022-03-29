@@ -291,63 +291,63 @@ code <- nimbleCode({
   # 2.3. Likelihood for fecundity: Logistic regression from the number of surveyed broods
   # -------------------------------------------------
   #for (s in 1:n.sites.fec){			### start loop over every study area
-  # for (t in 1:(n.years.fec)){ # changed from minus 1 AEB
-  #   J[t] ~ dbin(ann.fec[t], R[t])
-  # } #	close loop over every year in which we have fecundity data
+  for (t in 1:(n.years.fec)){ # changed from minus 1 AEB
+    J[t] ~ dbin(ann.fec[t], R[t])
+  } #	close loop over every year in which we have fecundity data
   #}
   
   # -------------------------------------------------        
   # 2.4. Likelihood for adult and juvenile survival from CMR
   # -------------------------------------------------
   # 
-  # # Define the multinomial likelihood
-  # for (t in 1:(n.occasions-1)){
-  #   marr.j[t,1:n.occasions] ~ dmulti(pr.j[t,1:n.occasions], r.j[t])
-  #   marr.a[t,1:n.occasions] ~ dmulti(pr.a[t,1:n.occasions], r.a[t])
-  # }
-  # 
-  # # Define the cell probabilities of the m-arrays
-  # # Main diagonal
-  # for (t in 1:(n.occasions-1)){
-  #   q.ad[t] <- 1-p.ad[t]            # Probability of non-recapture
-  #   
-  #   for(j in 1:(n.occasions-1)){
-  #     q.juv[t,j] <- 1 - p.juv[t,j]
-  #   }
-  #   
-  #   pr.j[t,t] <- 0
-  #   pr.a[t,t] <- phi.ad[t]*p.ad[t]
-  #   
-  #   # Above main diagonal
-  #   for (j in (t+1):(n.occasions-1)){
-  #     pr.j[t,j] <- phi.juv[t]*prod(phi.ad[(t+1):j])*prod(q.juv[t,t:(j-1)])*p.juv[t,j]
-  #     pr.a[t,j] <- prod(phi.ad[t:j])*prod(q.ad[t:(j-1)])*p.ad[j]
-  #   } #j
-  #   
-  #   # Below main diagonal
-  #   for (j in 1:(t-1)){
-  #     pr.j[t,j] <- 0
-  #     pr.a[t,j] <- 0
-  #   } #j
-  # } #t
-  # 
-  # # Last column: probability of non-recapture
-  # for (t in 1:(n.occasions-1)){
-  #   pr.j[t,n.occasions] <- 1-sum(pr.j[t,1:(n.occasions-1)])
-  #   pr.a[t,n.occasions] <- 1-sum(pr.a[t,1:(n.occasions-1)])
-  # } #t
+  # Define the multinomial likelihood
+  for (t in 1:(n.occasions-1)){
+    marr.j[t,1:n.occasions] ~ dmulti(pr.j[t,1:n.occasions], r.j[t])
+    marr.a[t,1:n.occasions] ~ dmulti(pr.a[t,1:n.occasions], r.a[t])
+  }
+
+  # Define the cell probabilities of the m-arrays
+  # Main diagonal
+  for (t in 1:(n.occasions-1)){
+    q.ad[t] <- 1-p.ad[t]            # Probability of non-recapture
+
+    for(j in 1:(n.occasions-1)){
+      q.juv[t,j] <- 1 - p.juv[t,j]
+    }
+
+    pr.j[t,t] <- 0
+    pr.a[t,t] <- phi.ad[t]*p.ad[t]
+
+    # Above main diagonal
+    for (j in (t+1):(n.occasions-1)){
+      pr.j[t,j] <- phi.juv[t]*prod(phi.ad[(t+1):j])*prod(q.juv[t,t:(j-1)])*p.juv[t,j]
+      pr.a[t,j] <- prod(phi.ad[t:j])*prod(q.ad[t:(j-1)])*p.ad[j]
+    } #j
+
+    # Below main diagonal
+    for (j in 1:(t-1)){
+      pr.j[t,j] <- 0
+      pr.a[t,j] <- 0
+    } #j
+  } #t
+
+  # Last column: probability of non-recapture
+  for (t in 1:(n.occasions-1)){
+    pr.j[t,n.occasions] <- 1-sum(pr.j[t,1:(n.occasions-1)])
+    pr.a[t,n.occasions] <- 1-sum(pr.a[t,1:(n.occasions-1)])
+  } #t
 
 })
 
 #### DATA ####
-dat <- list(#marr.j = chick.marray,
-            #marr.a = adult.marray,
+dat <- list(marr.j = chick.marray,
+            marr.a = adult.marray,
             
-            y.count=POP    ### use log(R) here if using the logscale model
+            y.count=POP,    ### use log(R) here if using the logscale model
             
             ### breeding success data
-            #J=PROD.DAT$J,
-            #R=PROD.DAT$R
+            J=PROD.DAT$J,
+            R=PROD.DAT$R
             
             ## future fecundity change - vector with one element for each scenario
 ) 
@@ -355,8 +355,8 @@ dat <- list(#marr.j = chick.marray,
 #### CONSTANTS ####
 const <- list(n.occasions = length(start:2021),
               offset = OFFSET, # difference in start times between population process (2008) and cmr data (1982)
-              #r.j=apply(chick.marray,1,sum),
-              #r.a=apply(adult.marray,1,sum),
+              r.j=apply(chick.marray,1,sum),
+              r.a=apply(adult.marray,1,sum),
               goodyear=goodyears$p.sel,
               #goodyear=goodyears$prop.seen,   ### if using a continuous effort correction
               juv.poss=phi.juv.possible$JuvSurv, ### sets the annual survival of juveniles to the mean if <70 were ringed
@@ -596,15 +596,15 @@ beep(sound = 1)
 
 #### RUN MCMC ####
 t.start <- Sys.time()
-sink("somanyerrors.txt")
+#sink("somanyerrors.txt")
 out <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
-sink()
+#sink()
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
-error.vec <- read_lines("somanyerrors.txt")
-error.vec <- error.vec[str_detect(error.vec, "") & 
-  !str_detect(error.vec, "lifted") &
-  !str_detect(error.vec, "slice")] %>% unique() #%>% sort()
-write_lines(error.vec, "somanyerrors.txt")
+# error.vec <- read_lines("somanyerrors.txt")
+# error.vec <- error.vec[str_detect(error.vec, "") & 
+#   !str_detect(error.vec, "lifted") &
+#   !str_detect(error.vec, "slice")] %>% unique() #%>% sort()
+# write_lines(error.vec, "somanyerrors.txt")
