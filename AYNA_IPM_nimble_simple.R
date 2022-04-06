@@ -99,7 +99,8 @@ code <- nimbleCode({
     mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
   }
   
-  agebeta ~ dnorm(1, sd = 0.001)    # Prior for shape osf increase in juvenile recapture probability with age
+  #agebeta ~ dnorm(1, sd = 0.001)    # Prior for shape osf increase in juvenile recapture probability with age
+  agebeta ~ dnorm(1, sd = 0.01)    # Prior for shape osf increase in juvenile recapture probability with age
   
   ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY OF JUVENILES
   
@@ -119,7 +120,8 @@ code <- nimbleCode({
   
   ### SURVIVAL PROBABILITY
   mean.phi.juv ~ dbeta(75.7,24.3)             # Prior for mean juvenile survival first year 0.757, second year 0.973 in Laysan albatross
-  mean.phi.ad ~ dbeta(91,9)              # Prior for mean adult survival - should be higher than 70%
+  mean.phi.ad ~ dunif(0.7, 1)              # Prior for mean adult survival - should be higher than 70%
+  #mean.phi.ad ~ dbeta(91,9)              # Prior for mean adult survival - should be higher than 70%
   mu.juv <- log(mean.phi.juv / (1-mean.phi.juv)) # Logit transformation
   mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
   
@@ -152,6 +154,7 @@ code <- nimbleCode({
   ## TODO - recall it may be useful to start these really high (but same proportional relationships)
   
   # TODO - should it be a binomial function on the twos
+  # TODO consider replacing the nonrounded things with a discrete uniform
   
   IMnonround[1] ~ T(dnorm(263/2,sd = 20), 0, Inf)   ### number of 1-year old survivors in 2007 (700*0.5*0.75) - CAN BE MANIPULATED
   IM[1,1,1] <- round(IMnonround[1])
@@ -211,7 +214,9 @@ code <- nimbleCode({
   N.atseanonround ~ T(dnorm(224/2,sd = 20), 0, Inf)    ### unknown number, but assume about 65% breeding each year per Cuthbert 2003 (sum(POP[1, ]) * (1-0.65)) - CAN BE MANIPULATED
   N.atsea[1] <- round(N.atseanonround)
   Ntot[1]<-sum(IM[1,1:30,3]) + Ntot.breed[1]+N.atsea[1]  ## total population size is all the immatures plus adult breeders and adults at sea - does not include recruits in Year 1
-  
+  N.ad.surv[1] <- 0
+  N.breed.ready[1] <- 0
+  nestlings[1] <- 0
   
   ### FOR EVERY SUBSEQUENT YEAR POPULATION PROCESS
   
@@ -250,6 +255,9 @@ code <- nimbleCode({
       # what is going on here
       #IM[tt,age,2] <- min(round(IM[tt,age-1,3]),IM[tt,age,1])*p.juv.recruit[age,tt]
       #IM[tt,age,2] <- IM[tt,age,1]*p.juv.recruit[age,tt]
+      
+      # AW idea - poisson might work better here (give it more wiggle/flexibility)
+      # poisson(IM*p.juv), could truncate too?
       IM[tt,age,2] ~ dbin(p.juv.recruit[age,tt], IM[tt,age,1])
       IM[tt,age,3] <- IM[tt,age,1] - IM[tt,age,2]
     }
@@ -402,9 +410,9 @@ for (j in 1:length(start:2020)) {
   ip.ad[j] <- tmp[goodyears$p.sel[j]] 
 }
 
-iN.ad.surv <- rep(999, n.years.fec)
-iN.breed.ready <- rep(999, n.years.fec)
-inestlings <- rep(999, n.years.fec)
+iN.ad.surv <- rep(0, n.years.fec)
+iN.breed.ready <- rep(0, n.years.fec)
+inestlings <- rep(0, n.years.fec)
 iN.recruits <- rep(NA, n.years.fec)
 iNtot.breed <- rep(NA, n.years.fec)
 iJUV <- rep(NA, n.years.fec)
@@ -412,13 +420,13 @@ iN.atsea <- rep(NA, n.years.fec)
 iNtot <- rep(NA, n.years.fec)
 IMinits <- array(NA, dim = c(n.years.fec, 30, 3))
 
-IMinits[1,1,1] = max(c(rnorm(1, 263*2, 20)), 0) %>% round() # TODO change sd???
-IMinits[1,2,1] = max(c(rnorm(1, 275*2, 20)), 0)%>% round()
-IMinits[1,3,1] = max(c(rnorm(1, 264*2, 20)), 0)%>% round()
-IMinits[1,4,1] = max(c(rnorm(1, 177*2, 20)), 0)%>% round()
-IMinits[1,5,1] = max(c(rnorm(1, 290*2, 20)), 0)%>% round()
-IMinits[1,6,1] = max(c(rnorm(1, 90*2, 20)), 0)%>% round()
-IMinits[1,7,1] = max(c(rnorm(1, 158*2, 20)), 0)%>% round()
+IMinits[1,1,1] = max(c(rnorm(1, 263*0.75, 20)), 0) %>% round() # TODO change sd???
+IMinits[1,2,1] = max(c(rnorm(1, 275*0.75, 20)), 0)%>% round()
+IMinits[1,3,1] = max(c(rnorm(1, 264*0.75, 20)), 0)%>% round()
+IMinits[1,4,1] = max(c(rnorm(1, 177*0.75, 20)), 0)%>% round()
+IMinits[1,5,1] = max(c(rnorm(1, 290*0.75, 20)), 0)%>% round()
+IMinits[1,6,1] = max(c(rnorm(1, 90*0.75, 20)), 0)%>% round()
+IMinits[1,7,1] = max(c(rnorm(1, 158*0.75, 20)), 0)%>% round()
 
 IMinits[1, 1, 2] <- 0
 IMinits[1, 1, 3] <- IMinits[1,1,1] - IMinits[1,1,2]
@@ -439,10 +447,10 @@ IMinits[1, , ]
 IMinits[,, 1]
 
 iN.recruits[1] <- sum(IMinits[1,1:30,2]) 
-iNtot.breed[1] <- rnorm(1, 640*2,sd = 20)  %>% round()#change here
+iNtot.breed[1] <- rnorm(1, 640*0.75,sd = 20)  %>% round()#change here
 
-iJUV[1] <- rnorm(1, 232*2, sd = 20) %>% round()
-iN.atsea[1] <- rnorm(1, 224*2,sd = 20)%>% round() #change here
+iJUV[1] <- rnorm(1, 232*0.75, sd = 20) %>% round()
+iN.atsea[1] <- rnorm(1, 224*0.75,sd = 20)%>% round() #change here
 iNtot[1]<-sum(IMinits[1,1:30,3]) + iNtot.breed[1]+iN.atsea[1]  
 
 for (tt in 2:n.years.fec) {
@@ -479,16 +487,16 @@ mean(iNtot.breed * mean.props[1:13, ] - POP[1:13, ])
 
 # logic check
 # there should not be negatives here
-  for (year in 2:n.years.fec) {
-    for(age in 2:30) {
-    print(paste(year, age, IMinits[year-1, age-1, 3] - IMinits[year, age, 1] , sep = ' '))
-  }
-}
+#   for (year in 2:n.years.fec) {
+#     for(age in 2:30) {
+#     print(paste(year, age, IMinits[year-1, age-1, 3] - IMinits[year, age, 1] , sep = ' '))
+#   }
+# }
 
 inits <- list(
   ann.fec = iann.fec,
   
-  sigma.obs=matrix(rexp(n.sites.count*n.years.count, 0.1),ncol=n.years.count),
+  sigma.obs=matrix(rexp(n.sites.count*n.years.fec, 0.1),ncol=n.years.fec),
   
   p.juv.recruit.f = p.juv.recruit.f.inits,
   p.juv.recruit = p.juv.recruit.inits,
@@ -502,14 +510,14 @@ inits <- list(
   
   p.juv = ip.juv,
 
-  sigma.p = 0, # fixed because of the IM 
+  sigma.p = 1, # fixed because of the IM 
    
   mean.phi.ad = 0.9 , # fixed because of the IM
   mean.phi.juv = 0.75, # fixed because of the IM
   mu.juv = logit(0.75),
   mu.ad = logit(0.9),
    
-  sigma.phi = 0, # fixed because of the IM
+  sigma.phi = 1, # fixed because of the IM
    
   phi.juv = rep(0.75, length(start:2021)-1),
   phi.ad = rep(0.9, length(start:2021)-1),
@@ -540,6 +548,9 @@ inits <- list(
 
 
 #### PARAMETERS TO MONITOR ####
+
+# TODO - add more here
+
 params <- c(
   # SURVIVAL
   "mean.phi.juv", "mean.phi.ad", "sigma.phi", 
@@ -547,7 +558,8 @@ params <- c(
   # FECUNDITY
   "ann.fec",
   # ABUNDANCE
-  "Ntot", "Ntot.breed", "N.atsea", 
+  "Ntot", "Ntot.breed", "N.atsea", "N.ad.surv", "N.breed.ready", "N.recruits", "nestlings", "JUV",
+  
   "sigma.obs"
   # FUTURE
   #"fut.growth.rate", "fut.lambda", 
@@ -555,12 +567,13 @@ params <- c(
 )
 
 #### MCMC SETTINGS ####
-nb <- 25000 #burn-in
-ni <- 200000 + nb #total iterations
-nt <- 1  #thin
+nb <- 0#100#000 #burn-in
+ni <- 2000#0000 + nb #total iterations
+nt <- 1#10  #thin
 nc <- 3  #chains
-adaptInterval = 100
+adaptInterval = 1000
 maxContractions = 1000
+scale = 0.01 # as opposed to ???
 
 #### COMPILE CONFIGURE AND BUILD ####
 Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
@@ -568,7 +581,8 @@ Rmodel <- nimbleModel(code = code, constants = const, data = dat,
 Rmodel$initializeInfo()
 conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
                       control = list(maxContractions = maxContractions, 
-                                     adaptInterval = adaptInterval)) # SLOWW
+                                     adaptInterval = adaptInterval,
+                                     scale = scale)) # SLOWW
 conf$printSamplers(type = "conjugate")
 conf$printSamplers(type = "posterior") # check sampler defaults
 
@@ -599,6 +613,8 @@ t.start <- Sys.time()
 #sink("somanyerrors.txt")
 out <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+out2 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
+               setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
 #sink()
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
@@ -608,3 +624,55 @@ t.end <- Sys.time()
 #   !str_detect(error.vec, "lifted") &
 #   !str_detect(error.vec, "slice")] %>% unique() #%>% sort()
 # write_lines(error.vec, "somanyerrors.txt")
+
+#saveRDS(out, paste(Sys.Date(), "AYNAout.RDS", sep = ""))
+
+# current weirdnesses
+# ntot breed 
+# sigma.p
+# sigma.phi
+# not mixing
+
+#assign("out", `2022-04-01 AYNAout`)
+
+library(coda)
+sum <- summary(out, na.rm = TRUE)
+# pdf()
+# plot(out)
+# dev.off()
+ 
+gd <- gelman.diag(out, multivariate = FALSE)$psrf
+gd <- gd[is.na(gd[, 1]) | is.infinite(gd[, 1]), ]
+gd2 <- gelman.diag(out2, multivariate = FALSE)$psrf
+gd2 <- gd2[is.na(gd2[, 1]) | is.infinite(gd2[, 1]), ]
+View(gd)
+View(gd2)
+View(out$chain1 %>% as.tibble %>% select(rownames(gd))) 
+View(out2$chain1 %>% as.tibble %>% select(rownames(gd2)))
+
+problematicnodes <- lapply(out, "[", , rownames(gd)) %>% as.mcmc()
+pdf("sadplots.pdf")
+traceplot(problematicnodes)
+dev.off()
+
+first100 <- head(out, 100)
+ggcorrplot(first100$chain1)
+
+# params <- c(
+#   # SURVIVAL
+#   "mean.phi.juv", "mean.phi.ad", "sigma.phi", 
+#   "mu.p.juv", "mean.p.ad", "agebeta", "sigma.p",
+#   # FECUNDITY
+#   "ann.fec",
+#   # ABUNDANCE
+#   "Ntot", "Ntot.breed", "N.atsea", "N.ad.surv", "N.breed.ready", "N.recruits", "nestlings", "JUV",
+#   
+#   "sigma.obs"
+#   # FUTURE
+#   #"fut.growth.rate", "fut.lambda", 
+#   #"Nobs.f"
+# )
+lapply(out, "[", , "sigma.p") %>% as.mcmc() %>% traceplot()
+
+effectiveSize(out) %>% sort()
+
