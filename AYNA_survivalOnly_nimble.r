@@ -23,7 +23,7 @@ select<-dplyr::select
 ### see 'IPM_DATA_PREPARATION_AYNA.R' for details on how data are aggregated
 
 ## LOAD PREPARED M-ARRAY FOR SURVIVAL ESTIMATION
-setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
+#setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\AYNA_IPM")
 load("AYNA_IPM_input.marray.RData")
 
 ## BOTH ARRAYS MUST HAVE EXACT SAME DIMENSIONS
@@ -270,7 +270,7 @@ Rmodel <- nimbleModel(code = code, constants = const, data = dat,
                       check = TRUE, calculate = TRUE, inits = inits)
 Rmodel$simulate()
 Rmodel$calculate()
-write_lines(Rmodel$getCode(), "AYNAipm_nimble.txt")
+#write_lines(Rmodel$getCode(), "AYNAipm_nimble.txt")
 
 
 conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
@@ -303,15 +303,15 @@ conf
 Rmcmc <- buildMCMC(conf)  
 Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
-# library(beepr)
-# beep(sound = 8)
+library(beepr)
+beep(sound = 8)
 
 #### RUN MCMC ####
 t.start <- Sys.time()
-sink("somanyerrors.txt")
+#sink("somanyerrors.txt")
 out <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
-sink()
+#sink()
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
@@ -334,3 +334,117 @@ View(geldiag)
 
 summ <- summary(out) 
 View(summ$statistics)
+
+colnames(out$chain1)
+
+
+#####  Steffen plotting code, modified by abby
+
+library(tidyverse)
+library(cowplot)
+library(patchwork)
+library(ggpomological)
+library(rphylopic)
+library(png)
+library(magick)
+library(mapproj)
+library(sf)
+library(rgdal)
+library(here)
+library(maps)
+library(spData)
+library(RColorBrewer)
+library(bayesplot)
+library(rgeos)
+library(ggsn)
+library(ggspatial)
+library(tidybayes)
+library(ggdist)
+library(wesanderson)
+library(strex)
+
+pal <- wes_palette("Zissou1", 5, type = "continuous")
+subadultcol <- pal[2]
+adultcol <- pal[4]
+age.pal <- c(subadultcol, adultcol)
+
+plotdat <- rbind(out$chain1, out$chain2, out$chain3) %>% 
+  as.data.frame() %>% 
+  pivot_longer(everything()) %>% 
+  as_tibble() %>% 
+  filter(str_detect(name, "phi") & !str_detect(name, "mean") & !str_detect(name, "sigma")) %>% 
+  mutate(Age = if_else(str_detect(name, "ad"), "Adult", "Juvenile")) %>% 
+  mutate(Year = c(1985:2020)[str_first_number(name)])
+
+png("survival_only_violin.png", width = 7, height = 5, units = "in", res = 300)
+ggplot(plotdat, 
+       mapping = aes(x = Year, y = value, color = Age, fill = Age)) +
+  stat_eye(alpha = 0.7, .width = c(0.5, 0.95)) +
+  theme_minimal() + 
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(), 
+        axis.text = element_text(size = 12),
+        legend.position = "bottom", 
+        plot.title.position = "plot",
+        axis.title=element_text(size=12)) +
+  scale_fill_manual(values = c(subadultcol, adultcol)) +
+  scale_color_manual(values = c(subadultcol, adultcol)) +
+  scale_y_continuous(expand = c(0, 0.05), 
+                     limits = c(0, 1)) +  #no expansion below or above min/max
+  xlab("Year") +
+  ylab("Annual survival probability")
+dev.off()
+
+plotdat2 <- cbind(Count =rowSums(POP), Year = 1:length(rowSums(POP))) %>% as.data.frame()
+plotdat2$Year <- 2007 + plotdat2$Year
+plotdat2 <- left_join(plotdat2, PROD.DAT, by = "Year") %>% 
+  mutate(coef = 4)
+
+png("prod_and_counts.png", width = 7, height = 5, units = "in", res = 300)
+ggplot(plotdat2) +
+  geom_point(mapping = aes(Year, y = Count), alpha = 0.9, size = 2, color = pal[5]) +
+  geom_smooth(mapping = aes(Year, y = Count),
+              #method = "lm", 
+              color = pal[5], fill = pal[5]) +
+  geom_point(mapping = aes(Year, y = J*coef), alpha = 0.9, size = 2, color = pal[1]) +
+  geom_smooth(mapping = aes(Year, y = J*coef), 
+              #method = "lm", 
+              color = pal[1], fill = pal[1]) +
+  theme_minimal() + 
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(), 
+        axis.text = element_text(size = 12),
+        legend.position = "bottom", 
+        plot.title.position = "plot",
+        axis.title=element_text(size=12)) +
+  scale_y_continuous(
+    
+    # Features of the first axis
+    name = "Population Counts",
+    
+    # Add a second axis and specify its features
+    sec.axis = sec_axis(~./4, name="Chick Counts")
+  ) +
+  xlab("Year")
+dev.off()
+
+survival_posteriors <- out$chain1[, str_detect(colnames(out$chain1),"phi.ad\\[")]
+ggplot() +
+  geom_point(data = as.data.frame(survival_posteriors[1:36, ]), 
+             aes(x=1985:2020,y=apply(survival_posteriors,2, median)), 
+             size=2, color='darkred')+
+  geom_smooth(method='lm') +
+  xlab("Year") +
+  ylab("Annual adult survival probability") +
+  ylim(c(0, 1)) +
+  theme(panel.background=element_rect(fill="white", colour="black"), 
+        axis.text=element_text(size=14, color="black"), 
+        axis.title=element_text(size=16), 
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank()) +
+  geom_point(data = as.data.frame(survival_posteriors.juvs[1:36, ]),
+             aes(x=1985:2020,y=apply(survival_posteriors.juvs,2, median)), 
+             size=2, color='green') 
+  
+
