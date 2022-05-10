@@ -2,6 +2,7 @@
 library(nimble)
 library(jagsUI)
 library(coda)
+library(doParallel) 
 
 #### LOAD DATA ####
 load("IPM_AEB_dat.RData")
@@ -38,13 +39,15 @@ code <- nimbleCode({
   # -------------------------------------------------
   
   ### RECAPTURE PROBABILITY
-  mean.p.ad[1] ~ dunif(0.05, 0.5)	         
-  mean.p.ad[2] ~ dunif(0.2, 1)	          
+  
+  mean.p.ad[1] ~ dunif(0.05, 0.5)	      
+  mean.p.ad[2] ~ dunif(0.2, 1)	       
   
   for (gy in 1:2){  
     mu.p.juv[gy] ~ dnorm(-4, sd = 0.25) 
-    mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
+    mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) 
   }
+  
   agebeta ~ dnorm(1, sd = 0.01) # Prior for shape of increase in juvenile recapture probability with age
   
   sigma.p ~ dexp(1) 
@@ -61,7 +64,7 @@ code <- nimbleCode({
     }
     
     # ...FOR ADULTS
-    logit(p.ad[t])  <- mu.p.ad[goodyear[j]] + eps.p[t]  
+    logit(p.ad[t])  <- mu.p.ad[goodyear[t]]  + eps.p[t]  
     eps.p[t] ~ dnorm(0, sd = sigma.p)
   }
   
@@ -76,7 +79,7 @@ code <- nimbleCode({
   
   ## RANDOM TIME EFFECT ON SURVIVAL
   for (j in 1:(n.occasions-1)){
-    logit(phi.juv[j]) <- mu.juv + eps.phi[j]
+    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j]
     logit(phi.ad[j]) <- mu.ad + eps.phi[j] 
     eps.phi[j] ~ dnorm(0, sd = sigma.phi) 
   }
@@ -140,8 +143,6 @@ code <- nimbleCode({
   
   ### FOR EVERY SUBSEQUENT YEAR POPULATION PROCESS
   
-  ## recruit probabili
-  
   for (tt in 2:n.years.fec){
     for (age in 1:30) {
       logit(p.juv.recruit[age,tt])<- mu.p.juv[2] + eps.p[tt+offset-1] + (agebeta / 2 * age) 
@@ -152,7 +153,7 @@ code <- nimbleCode({
     # 2: recruits in current year
     # 3: unrecruited in current year (available for recruitment next year)
     
-    IM[tt,1,1] ~ dbin(phi.juv[tt+offset-1], JUV[tt-1])                                  
+    IM[tt,1,1] ~ dbin(phi.juv[tt+offset-1], round(JUV[tt-1]))                                
     IM[tt,1,2] <- 0 
     IM[tt,1,3] <- IM[tt,1,1] - IM[tt,1,2]
     for(age in 2:30) {
@@ -162,7 +163,7 @@ code <- nimbleCode({
     }
     
     N.recruits[tt] <- sum(IM[tt,1:30,2])  ### number of this years recruiters
-    N.ad.surv[tt] ~ dbin(phi.ad[tt+offset-1], Ntot.breed[tt-1]+N.atsea[tt-1])  ### previous year's adults that survive
+    N.ad.surv[tt] ~ dbin(phi.ad[tt+offset-1], round(Ntot.breed[tt-1])+round(N.atsea[tt-1]))  ### previous year's adults that survive
     N.breed.ready[tt] ~ dbin(p.ad[tt+offset-1], N.ad.surv[tt]) ### number of available breeders is proportion of survivors that returns
     Ntot.breed[tt]<- N.breed.ready[tt]+N.recruits[tt]  ### number of counted breeders is sum of old breeders returning and first recruits
     N.atsea[tt] <- N.ad.surv[tt]-N.breed.ready[tt] ### potential breeders that remain at sea
@@ -187,10 +188,51 @@ code <- nimbleCode({
   # -------------------------------------------------
   # 2.3. Likelihood for fecundity: Logistic regression from the number of surveyed broods
   # -------------------------------------------------
-
+  
   for (t in 1:(n.years.fec)){ 
     J[t] ~ dbin(ann.fec[t], R[t])
   } 
+  
+  # -------------------------------------------------
+  # 2.4. Likelihood for adult and juvenile survival from CMR
+  # -------------------------------------------------
+  #
+  # Define the multinomial likelihood
+  for (t in 1:(n.occasions-1)){
+    marr.j[t,1:n.occasions] ~ dmulti(pr.j[t,1:n.occasions], r.j[t])
+    marr.a[t,1:n.occasions] ~ dmulti(pr.a[t,1:n.occasions], r.a[t])
+  }
+  
+  # Define the cell probabilities of the m-arrays
+  # Main diagonal
+  for (t in 1:(n.occasions-1)){
+    q.ad[t] <- 1-p.ad[t]            # Probability of non-recapture
+    
+    for(j in 1:(n.occasions-1)){
+      q.juv[t,j] <- 1 - p.juv[t,j]
+    }
+    
+    pr.j[t,t] <- 0
+    pr.a[t,t] <- phi.ad[t]*p.ad[t]
+    
+    # Above main diagonal
+    for (j in (t+1):(n.occasions-1)){
+      pr.j[t,j] <- phi.juv[t]*prod(phi.ad[(t+1):j])*prod(q.juv[t,t:(j-1)])*p.juv[t,j]
+      pr.a[t,j] <- prod(phi.ad[t:j])*prod(q.ad[t:(j-1)])*p.ad[j]
+    } #j
+    
+    # Below main diagonal
+    for (j in 1:(t-1)){
+      pr.j[t,j] <- 0
+      pr.a[t,j] <- 0
+    } #j
+  } #t
+  
+  # Last column: probability of non-recapture
+  for (t in 1:(n.occasions-1)){
+    pr.j[t,n.occasions] <- 1-sum(pr.j[t,1:(n.occasions-1)])
+    pr.a[t,n.occasions] <- 1-sum(pr.a[t,1:(n.occasions-1)])
+  } #t
   
 })
 
@@ -202,7 +244,7 @@ params <- c(
 
 #### MCMC SETTINGS ####
 nb <- 0 #burn-in
-ni <- 20#0000 #total iterations
+ni <- 200000 #total iterations
 nt <- 1 # thin
 nc <- 3  #chains
 adaptInterval = 200
@@ -225,26 +267,102 @@ Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 #### RUN MCMC ####
 
 # with inits - does not mix
+
+t.start <- Sys.time()
 out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
-               setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE)
+t.end <- Sys.time()
+(runTime <- t.end - t.start)
 
 # without inits - slice sampler errors
-sink("somanyerrors_loon.txt")
+t.start <- Sys.time()
 out2 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc,
-               setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
-sink()
+                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+t.end <- Sys.time()
+(runTime <- t.end - t.start)
 
-library(tidyverse)
-error.vec <- read_lines("somanyerrors_loon.txt")
-error.vec <- error.vec[str_detect(error.vec, "") &
-                         !str_detect(error.vec, "lifted") &
-                         !str_detect(error.vec, "slice")] %>% unique() #%>% sort()
-write_lines(error.vec, "somanyerrors_loon.txt")
+### PARALLEL VERSION ####
 
-# TODO
-# fix jags version
-# why does it run without inits in jags but not in nimble
-# start adding likelihoods back in
+t.start <- Sys.time() # start clock for whole process
 
+cores=detectCores() # how many cores are available
+# this line is essential on mac, not sure about pc
+# does not impact performance though
+used.cores = min(nc, cores) # good practice to not max out all available cores. 
+# my general workflow is that in each instance of R I set up a script like this 
+# that runs 3 chains in parallel (1 chain per core)
+cl <- makeCluster(used.cores, setup_strategy = "sequential") # make cluster of cores
+registerDoParallel(cl) 
 
+foreach(i = 1:nc) %dopar% { # parallel version of for loop
+  # my understanding is that each core can access your environment but not workspace 
+  # i.e. you can reference data objects but you have to reload packages and functions
+  library(nimble)
 
+  #### COMPILE CONFIGURE AND BUILD ####
+  Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
+                        check = FALSE, calculate = FALSE)
+  conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
+                        control = list(maxContractions = maxContractions, 
+                                       adaptInterval = adaptInterval,
+                                       scale = scale, 
+                                       sliceWidth = sliceWidth)) 
+  Rmcmc <- buildMCMC(conf)  
+  Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
+  Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
+  
+  #### RUN MCMC ####
+  
+  out3 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
+                  setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+  
+  saveRDS(out3, paste("out3.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
+  
+  
+} # closes parallel loop
+stopCluster(cl) # important to do this to stop running things in parallel
+
+t.end <- Sys.time() # end clock
+(runTime <- t.end - t.start) # how long did whole thing take in parallel
+
+t.start <- Sys.time() # start clock for whole process
+
+cores=detectCores() # how many cores are available
+# this line is essential on mac, not sure about pc
+# does not impact performance though
+used.cores = min(nc, cores) # good practice to not max out all available cores. 
+# my general workflow is that in each instance of R I set up a script like this 
+# that runs 3 chains in parallel (1 chain per core)
+cl <- makeCluster(used.cores, setup_strategy = "sequential") # make cluster of cores
+registerDoParallel(cl) 
+
+foreach(i = 1:nc) %dopar% { # parallel version of for loop
+  # my understanding is that each core can access your environment but not workspace 
+  # i.e. you can reference data objects but you have to reload packages and functions
+  library(nimble)
+  
+  #### COMPILE CONFIGURE AND BUILD ####
+  Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
+                        check = FALSE, calculate = FALSE)
+  conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
+                        control = list(maxContractions = maxContractions, 
+                                       adaptInterval = adaptInterval,
+                                       scale = scale, 
+                                       sliceWidth = sliceWidth)) 
+  Rmcmc <- buildMCMC(conf)  
+  Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
+  Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
+  
+  #### RUN MCMC ####
+  
+  out4 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc,
+                  setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+  
+  saveRDS(out4, paste("out4.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
+  
+  
+} # closes parallel loop
+stopCluster(cl) # important to do this to stop running things in parallel
+
+t.end <- Sys.time() # end clock
+(runTime <- t.end - t.start) # how long did whole thing take in parallel
