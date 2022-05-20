@@ -313,7 +313,7 @@ foreach(i = 1:nc) %dopar% { # parallel version of for loop
   
   #### RUN MCMC ####
   
-  out3 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
+  out3 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = 1, inits = inits,
                   setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
   
   saveRDS(out3, paste("out3.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
@@ -355,7 +355,7 @@ foreach(i = 1:nc) %dopar% { # parallel version of for loop
   
   #### RUN MCMC ####
   
-  out4 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc,
+  out4 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = 1,
                   setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
   
   saveRDS(out4, paste("out4.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
