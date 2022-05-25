@@ -10,6 +10,8 @@ load("IPM_AEB_dat.RData")
 #### LOAD INITS #####
 load("IPM_AEB_inits.Rdata")
 
+const <- c(const, maxAge = const$n.occasions)
+
 #### MODEL CODE ####
 code <- nimbleCode({
   
@@ -60,7 +62,8 @@ code <- nimbleCode({
       p.juv[t,j] <- 0
     }
     for (j in (t+1):(n.occasions-1)){
-      logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
+      #logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
+      logit(p.juv[t,j])  <- r.e[j - t] + eps.p[j]
     }
     
     # ...FOR ADULTS
@@ -93,8 +96,10 @@ code <- nimbleCode({
   # -------------------------------------------------
   
   ### RECRUIT PROBABILITY ###
-  for (age in 1:30) {
-    logit(p.juv.recruit.f[age])<-mu.p.juv[2] + (agebeta * age/2)
+  for (age in 1:maxAge) {
+    #logit(p.juv.recruit.f[age]) <- mu.p.juv[2] + (agebeta * age/2)
+    r.e[age] ~ dunif(-8, 8)
+    logit(p.juv.recruit.f[age]) <- r.e[age]
   }
   
   IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
@@ -125,13 +130,13 @@ code <- nimbleCode({
   IM[1,7,2] ~ dbin(p.juv.recruit.f[7], round(IM[1,7,1]))
   IM[1,7,3] <- round(IM[1,7,1]) - IM[1,7,2]
   
-  for(age in 8:30) {
+  for(age in 8:maxAge) {
     IM[1,age,1] ~ dbin(mean.phi.ad, IM[1,age-1,3])
     IM[1,age,2] ~ dbin(p.juv.recruit.f[age], IM[1,age,1])
     IM[1,age,3] <- IM[1,age,1] - IM[1,age,2]
   }
   
-  N.recruits[1] <- sum(IM[1,1:30,2]) 
+  N.recruits[1] <- sum(IM[1,1:maxAge,2]) 
   N.ad.surv[1] <- 0
   N.breed.ready[1] <- 0
   Ntot.breed[1] ~ T(dnorm(640/2,sd = 20), 0, Inf)  
@@ -139,13 +144,14 @@ code <- nimbleCode({
   nestlings[1] <- 0
   JUV[1] ~ T(dnorm(232/2, sd = 20), 0, Inf)         
   
-  Ntot[1]<-sum(IM[1,1:30,3]) + round(Ntot.breed[1])+round(N.atsea[1]) 
+  Ntot[1]<-sum(IM[1,1:maxAge,3]) + round(Ntot.breed[1])+round(N.atsea[1]) 
   
   ### FOR EVERY SUBSEQUENT YEAR POPULATION PROCESS
   
   for (tt in 2:n.years.fec){
-    for (age in 1:30) {
-      logit(p.juv.recruit[age,tt])<- mu.p.juv[2] + eps.p[tt+offset-1] + (agebeta / 2 * age) 
+    for (age in 1:maxAge) {
+      # logit(p.juv.recruit[age,tt])<- mu.p.juv[2] + eps.p[tt+offset-1] + (agebeta / 2 * age) 
+      logit(p.juv.recruit[age, tt]) <- r.e[age] + eps.p[tt+offset-1]
     }
     
     ## IMMATURE MATRIX WITH 3 columns:
@@ -156,13 +162,13 @@ code <- nimbleCode({
     IM[tt,1,1] ~ dbin(phi.juv[tt+offset-1], round(JUV[tt-1]))                                
     IM[tt,1,2] <- 0 
     IM[tt,1,3] <- IM[tt,1,1] - IM[tt,1,2]
-    for(age in 2:30) {
+    for(age in 2:maxAge) {
       IM[tt,age,1] ~ dbin(phi.ad[tt+offset-1], IM[tt-1,age-1,3])
       IM[tt,age,2] ~ dbin(p.juv.recruit[age,tt], IM[tt,age,1])
       IM[tt,age,3] <- IM[tt,age,1] - IM[tt,age,2]
     }
     
-    N.recruits[tt] <- sum(IM[tt,1:30,2])  ### number of this years recruiters
+    N.recruits[tt] <- sum(IM[tt,1:maxAge,2])  ### number of this years recruiters
     N.ad.surv[tt] ~ dbin(phi.ad[tt+offset-1], round(Ntot.breed[tt-1])+round(N.atsea[tt-1]))  ### previous year's adults that survive
     N.breed.ready[tt] ~ dbin(p.ad[tt+offset-1], N.ad.surv[tt]) ### number of available breeders is proportion of survivors that returns
     Ntot.breed[tt]<- N.breed.ready[tt]+N.recruits[tt]  ### number of counted breeders is sum of old breeders returning and first recruits
@@ -171,7 +177,7 @@ code <- nimbleCode({
     JUV[tt] ~ dpois(nestlings[tt]) ### juveniles produced
     
     ### THE TOTAL POPULATION ###
-    Ntot[tt]<-sum(IM[tt,1:30,3]) + Ntot.breed[tt]+N.atsea[tt]  ## total population size is all the immatures plus adult breeders and adults at sea
+    Ntot[tt]<-sum(IM[tt,1:maxAge,3]) + Ntot.breed[tt]+N.atsea[tt]  ## total population size is all the immatures plus adult breeders and adults at sea
     
   } # tt
   

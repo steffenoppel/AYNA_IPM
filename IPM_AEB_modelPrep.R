@@ -98,16 +98,52 @@ gd2 <- gd[is.na(gd[, 1]) | is.infinite(gd[, 1]), ]
 View(gd) # not converging
 View(gd2) # but looks good here
 
+`out-jags-noinits` <- lapply(`out-jags-noinits`, function(x) x[, order(colnames(x))]) %>% 
+  lapply(function(x) x[, -1])
+`out-nimblle-noinits` <- lapply(`out-nimblle-noinits`, function(x) x[, order(colnames(x))])
+
 pdf("sadplots-jags.pdf")
 #plot(out)
 par(mfrow = c(3, 2))
-traceplot(`out-jags-inits`)
+traceplot(`out-jags-noinits`)
 par(mfrow = c(1,1))
 dev.off()
 
 pdf("sadplots-nimble.pdf")
 #plot(out)
 par(mfrow = c(3, 2))
-traceplot(`out-nimblle-inits`)
+traceplot(`out-nimblle-noinits`)
+par(mfrow = c(1,1))
+dev.off()
+
+nimble.gd <- gelman.diag(`nimble-maxAge15`, multivariate = FALSE)$psrf
+nimble.gd2 <- gd[is.na(gd[, 1]) | is.infinite(gd[, 1]), ]
+
+jags.gd <- gelman.diag(`jags-maxAge15`, multivariate = FALSE)$psrf
+jags.gd2 <- gd[is.na(gd[, 1]) | is.infinite(gd[, 1]), ]
+
+##########
+
+nimble.gd <- gelman.diag(`out-nimble-randeffage`, multivariate = FALSE)$psrf
+nimble.gd2 <- gd[is.na(gd[, 1]) | is.infinite(gd[, 1]), ]
+
+jags.gd <- gelman.diag(`out-jags-randeffage`, multivariate = FALSE)$psrf
+jags.gd2 <- gd[is.na(gd[, 1]) | is.infinite(gd[, 1]), ]
+
+`out-jags-randeffage` <- lapply(`out-jags-randeffage`, function(x) x[, order(colnames(x))]) %>% 
+  lapply(function(x) x[, -1])
+`out-nimble-randeffage` <- lapply(`out-nimble-randeffage`, function(x) x[, order(colnames(x))])
+
+pdf("sadplots-jags-re.pdf")
+#plot(out)
+par(mfrow = c(3, 2))
+traceplot(`out-jags-randeffage`)
+par(mfrow = c(1,1))
+dev.off()
+
+pdf("sadplots-nimble-re.pdf")
+#plot(out)
+par(mfrow = c(3, 2))
+traceplot(`out-nimble-randeffage`)
 par(mfrow = c(1,1))
 dev.off()
