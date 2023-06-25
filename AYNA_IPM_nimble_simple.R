@@ -502,14 +502,14 @@ inits <- list(
   
   p.juv = ip.juv,
 
-  sigma.p = 0, # fixed because of the IM 
+  sigma.p = 0.01, # fixed because of the IM 
    
   mean.phi.ad = 0.9 , # fixed because of the IM
   mean.phi.juv = 0.75, # fixed because of the IM
   mu.juv = logit(0.75),
   mu.ad = logit(0.9),
    
-  sigma.phi = 0, # fixed because of the IM
+  sigma.phi = 0.01, # fixed because of the IM
    
   phi.juv = rep(0.75, length(start:2021)-1),
   phi.ad = rep(0.9, length(start:2021)-1),
