@@ -2,6 +2,7 @@
 library(nimble)
 library(jagsUI)
 library(coda)
+library(doParallel) 
 
 #### LOAD DATA ####
 load("IPM_AEB_dat.RData")
@@ -194,12 +195,11 @@ code <- nimbleCode({
       # option 2 - index by s and goodyear/badyear[t]
       
       # run this in both jags and nimble for a sanity check
-      
     }	# t
   }	# s
   
   # -------------------------------------------------
-  # 2.3. Likelihood for fecundity
+  # 2.3. Likelihood for fecundity: Logistic regression from the number of surveyed broods
   # -------------------------------------------------
   
   for (t in 1:(n.years.fec)){ 
@@ -278,9 +278,105 @@ Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 #### RUN MCMC ####
+
+# with inits - does not mix
+
 t.start <- Sys.time()
 out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
                 setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE)
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
+
+# without inits - slice sampler errors
+t.start <- Sys.time()
+out2 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc,
+                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+t.end <- Sys.time()
+(runTime <- t.end - t.start)
+
+### PARALLEL VERSION ####
+
+t.start <- Sys.time() # start clock for whole process
+
+cores=detectCores() # how many cores are available
+# this line is essential on mac, not sure about pc
+# does not impact performance though
+used.cores = min(nc, cores) # good practice to not max out all available cores. 
+# my general workflow is that in each instance of R I set up a script like this 
+# that runs 3 chains in parallel (1 chain per core)
+cl <- makeCluster(used.cores, setup_strategy = "sequential") # make cluster of cores
+registerDoParallel(cl) 
+
+foreach(i = 1:nc) %dopar% { # parallel version of for loop
+  # my understanding is that each core can access your environment but not workspace 
+  # i.e. you can reference data objects but you have to reload packages and functions
+  library(nimble)
+
+  #### COMPILE CONFIGURE AND BUILD ####
+  Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
+                        check = FALSE, calculate = FALSE)
+  conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
+                        control = list(maxContractions = maxContractions, 
+                                       adaptInterval = adaptInterval,
+                                       scale = scale, 
+                                       sliceWidth = sliceWidth)) 
+  Rmcmc <- buildMCMC(conf)  
+  Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
+  Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
+  
+  #### RUN MCMC ####
+  
+  out3 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = 1, inits = inits,
+                  setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+  
+  saveRDS(out3, paste("out3.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
+  
+  
+} # closes parallel loop
+stopCluster(cl) # important to do this to stop running things in parallel
+
+t.end <- Sys.time() # end clock
+(runTime <- t.end - t.start) # how long did whole thing take in parallel
+
+t.start <- Sys.time() # start clock for whole process
+
+cores=detectCores() # how many cores are available
+# this line is essential on mac, not sure about pc
+# does not impact performance though
+used.cores = min(nc, cores) # good practice to not max out all available cores. 
+# my general workflow is that in each instance of R I set up a script like this 
+# that runs 3 chains in parallel (1 chain per core)
+cl <- makeCluster(used.cores, setup_strategy = "sequential") # make cluster of cores
+registerDoParallel(cl) 
+
+foreach(i = 1:nc) %dopar% { # parallel version of for loop
+  # my understanding is that each core can access your environment but not workspace 
+  # i.e. you can reference data objects but you have to reload packages and functions
+  library(nimble)
+  
+  #### COMPILE CONFIGURE AND BUILD ####
+  Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
+                        check = FALSE, calculate = FALSE)
+  conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
+                        control = list(maxContractions = maxContractions, 
+                                       adaptInterval = adaptInterval,
+                                       scale = scale, 
+                                       sliceWidth = sliceWidth)) 
+  Rmcmc <- buildMCMC(conf)  
+  Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
+  Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
+  
+  #### RUN MCMC ####
+  
+  out4 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = 1,
+                  setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+  
+  saveRDS(out4, paste("out4.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
+  
+  
+} # closes parallel loop
+stopCluster(cl) # important to do this to stop running things in parallel
+
+t.end <- Sys.time() # end clock
+(runTime <- t.end - t.start) # how long did whole thing take in parallel

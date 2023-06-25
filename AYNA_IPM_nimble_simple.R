@@ -10,6 +10,7 @@ library(coda)
 library(tidyverse)
 library(lubridate)
 library(data.table)
+library(strex)
 filter<-dplyr::filter
 select<-dplyr::select
 
@@ -82,8 +83,9 @@ code <- nimbleCode({
   # -------------------------------------------------
   for (s in 1:n.sites.count){			### start loop over every study area
     for (t in 1:n.years.fec){			### start loop over every year
-      sigma.obs[s,t] ~ dexp(0.1)	#Prior for SD of observation process (variation in detectability)
-    }
+      sigma.obs[s,t] ~ dexp(1)	#Prior for SD of observation process (variation in detectability)
+      #sigma.obs[s,t] ~ dexp(0.1)	#Prior for SD of observation process (variation in detectability)
+      }
   }
   
   # -------------------------------------------------        
@@ -99,7 +101,8 @@ code <- nimbleCode({
     mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
   }
   
-  agebeta ~ dnorm(1, sd = 0.001)    # Prior for shape osf increase in juvenile recapture probability with age
+  #agebeta ~ dnorm(1, sd = 0.001)    # Prior for shape osf increase in juvenile recapture probability with age
+  agebeta ~ dnorm(1, sd = 0.01)    # Prior for shape osf increase in juvenile recapture probability with age
   
   ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY OF JUVENILES
   
@@ -119,6 +122,7 @@ code <- nimbleCode({
   
   ### SURVIVAL PROBABILITY
   mean.phi.juv ~ dbeta(75.7,24.3)             # Prior for mean juvenile survival first year 0.757, second year 0.973 in Laysan albatross
+  #mean.phi.ad ~ dunif(0.7, 1)              # Prior for mean adult survival - should be higher than 70%
   mean.phi.ad ~ dbeta(91,9)              # Prior for mean adult survival - should be higher than 70%
   mu.juv <- log(mean.phi.juv / (1-mean.phi.juv)) # Logit transformation
   mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
@@ -152,50 +156,59 @@ code <- nimbleCode({
   ## TODO - recall it may be useful to start these really high (but same proportional relationships)
   
   # TODO - should it be a binomial function on the twos
+  # TODO consider replacing the nonrounded things with a discrete uniform
   
-  IMnonround[1] ~ T(dnorm(263/2,sd = 20), 0, Inf)   ### number of 1-year old survivors in 2007 (700*0.5*0.75) - CAN BE MANIPULATED
-  IM[1,1,1] <- round(IMnonround[1])
+  IMnonround[1] ~ T(dnorm(263/2,sd = 20), 0, Inf)   ### number of 1-year old survivors in 2007 (700*0.5*0.5) - CAN BE MANIPULATED
+  #IM[1,1,1] ~ dcat(pNinits[1:ninits])
+  IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
   IM[1,1,2] <- 0
-  IM[1,1,3] <- IM[1,1,1] - IM[1,1,2]
+  IM[1,1,3] <- round(IM[1,1,1]) - IM[1,1,2]
   
-  IMnonround[2] ~ T(dnorm(275/2,sd = 20), 0, Inf)   ### number of 2-year old survivors in 2006 (680*0.6*0.75*0.9) CAN BE MANIPULATED
-  IM[1,2,1] <- round(IMnonround[2])
-  IM[1,2,2] ~ dbin(p.juv.recruit.f[2], IM[1,2,1])
+  #IMnonround[2] ~ T(dnorm(275/2,sd = 20), 0, Inf)   ### number of 2-year old survivors in 2006 (680*0.6*0.75*0.9) CAN BE MANIPULATED
+  IM[1,2,1] ~ T(dnorm(275/2,sd = 20), 0, Inf)
+  #IM[1,2,1] ~ dcat(pNinits[1:ninits])
+  IM[1,2,2] ~ dbin(p.juv.recruit.f[2], round(IM[1,2,1]))
   #IM[1,2,2] <- round(IM[1,2,1]*p.juv.recruit.f[2])
-  IM[1,2,3] <- IM[1,2,1] - IM[1,2,2]
+  IM[1,2,3] <- round(IM[1,2,1]) - IM[1,2,2]
   
-  IMnonround[3] ~ T(dnorm(264/2,sd = 20), 0, Inf)   ### number of 3-year old survivors in 2005 (680*0.64*0.75*0.9^2) - CAN BE MANIPULATED
-  IM[1,3,1] <- round(IMnonround[3])
+  #IMnonround[3] ~ T(dnorm(264/2,sd = 20), 0, Inf)   ### number of 3-year old survivors in 2005 (680*0.64*0.75*0.9^2) - CAN BE MANIPULATED
+  IM[1,3,1] ~ T(dnorm(264/2,sd = 20), 0, Inf)
+  #IM[1,3,1] ~ dcat(pNinits[1:ninits])
   #IM[1,3,2] <- round(IM[1,3,1]*p.juv.recruit.f[3])
-  IM[1,3,2] ~ dbin(p.juv.recruit.f[3], IM[1,3,1])
-  IM[1,3,3] <- IM[1,3,1] - IM[1,3,2]
+  IM[1,3,2] ~ dbin(p.juv.recruit.f[3], round(IM[1,3,1]))
+  IM[1,3,3] <- round(IM[1,3,1]) - IM[1,3,2]
   
-  IMnonround[4] ~ T(dnorm(177/2,sd = 20), 0, Inf)   ### number of 4-year old survivors in 2004 (540*0.6*0.75*0.9^3) - CAN BE MANIPULATED
-  IM[1,4,1] <- round(IMnonround[4])
+  #IMnonround[4] ~ T(dnorm(177/2,sd = 20), 0, Inf)   ### number of 4-year old survivors in 2004 (540*0.6*0.75*0.9^3) - CAN BE MANIPULATED
+  IM[1,4,1] ~ T(dnorm(177/2,sd = 20), 0, Inf) 
+  #IM[1,4,1] ~ dcat(pNinits[1:ninits])
   #IM[1,4,2] <- round(IM[1,4,1]*p.juv.recruit.f[4])
-  IM[1,4,2] ~ dbin(p.juv.recruit.f[4], IM[1,4,1])
-  IM[1,4,3] <- IM[1,4,1] - IM[1,4,2]
+  IM[1,4,2] ~ dbin(p.juv.recruit.f[4], round(IM[1,4,1]))
+  IM[1,4,3] <- round(IM[1,4,1]) - IM[1,4,2]
   
-  IMnonround[5] ~ T(dnorm(290/2,sd = 20), 0, Inf)   ### number of 5-year old survivors in 2003 (709*0.83*0.75*0.9^4) - CAN BE MANIPULATED
-  IM[1,5,1] <- round(IMnonround[5])
+  # IMnonround[5] ~ T(dnorm(290/2,sd = 20), 0, Inf)   ### number of 5-year old survivors in 2003 (709*0.83*0.75*0.9^4) - CAN BE MANIPULATED
+  IM[1,5,1] ~ T(dnorm(290/2,sd = 20), 0, Inf)
+  #IM[1,5,1] ~ dcat(pNinits[1:ninits])
   #IM[1,5,2] <- round(IM[1,5,1]*p.juv.recruit.f[5])
-  IM[1,5,2] ~ dbin(p.juv.recruit.f[5], IM[1,5,1])
-  IM[1,5,3] <- IM[1,5,1] - IM[1,5,2]
+  IM[1,5,2] ~ dbin(p.juv.recruit.f[5], round(IM[1,5,1]))
+  IM[1,5,3] <- round(IM[1,5,1]) - IM[1,5,2]
   
-  IMnonround[6] ~ T(dnorm(90/2,sd = 20), 0, Inf)    ### number of 6-year old survivors in 2002 (600*0.34*0.75*0.9^5) - CAN BE MANIPULATED
-  IM[1,6,1] <- round(IMnonround[6])
+  #IMnonround[6] ~ T(dnorm(90/2,sd = 20), 0, Inf)    ### number of 6-year old survivors in 2002 (600*0.34*0.75*0.9^5) - CAN BE MANIPULATED
+  IM[1,6,1] ~ T(dnorm(90/2,sd = 20), 0, Inf) 
+  #IM[1,6,1] ~ dcat(pNinits[1:ninits])
   #IM[1,6,2] <- round(IM[1,6,1]*p.juv.recruit.f[6])
-  IM[1,6,2] ~ dbin(p.juv.recruit.f[6], IM[1,6,1])
-  IM[1,6,3] <- IM[1,6,1] - IM[1,6,2]
+  IM[1,6,2] ~ dbin(p.juv.recruit.f[6], round(IM[1,6,1]))
+  IM[1,6,3] <- round(IM[1,6,1]) - IM[1,6,2]
   
-  IMnonround[7] ~ T(dnorm(158/2,sd = 20), 0, Inf)   ### number of 7-year old survivors in 2001 (650*0.61*0.75*0.9^6) - CAN BE MANIPULATED
-  IM[1,7,1] <- round(IMnonround[7])
+  #IMnonround[7] ~ T(dnorm(158/2,sd = 20), 0, Inf)   ### number of 7-year old survivors in 2001 (650*0.61*0.75*0.9^6) - CAN BE MANIPULATED
+  IM[1,7,1] ~ T(dnorm(158/2,sd = 20), 0, Inf)
+  #IM[1,7,1] ~ dcat(pNinits[1:ninits])
   #IM[1,7,2] <- round(IM[1,7,1]*p.juv.recruit.f[7])
-  IM[1,7,2] ~ dbin(p.juv.recruit.f[7], IM[1,7,1])
-  IM[1,7,3] <- IM[1,7,1] - IM[1,7,2]
+  IM[1,7,2] ~ dbin(p.juv.recruit.f[7], round(IM[1,7,1]))
+  IM[1,7,3] <- round(IM[1,7,1]) - IM[1,7,2]
   
   for(age in 8:30) {
-    IM[1,age,1] ~ dbin(pow(mean.phi.ad,(age-1)), IM[1,age-1,3])
+    #IM[1,age,1] ~ dbin(pow(mean.phi.ad,(age-1)), IM[1,age-1,3])
+    IM[1,age,1] ~ dbin(mean.phi.ad, IM[1,age-1,3])
     #IM[1,age,2] <- round(IM[1,age,1]*p.juv.recruit.f[age])
     IM[1,age,2] ~ dbin(p.juv.recruit.f[age], IM[1,age,1])
     IM[1,age,3] <- IM[1,age,1] - IM[1,age,2]
@@ -204,14 +217,20 @@ code <- nimbleCode({
   
   # TODO
   # are the correct things divided by 2
-  Ntot.breednonround ~ T(dnorm(640/2,sd = 20), 0, Inf)  ### sum of counts is 640 ( sum(POP[1, ]) <- across 11 study areas )
-  Ntot.breed[1] <- round(Ntot.breednonround)
-  JUVnonround ~ T(dnorm(232/2, sd = 20), 0, Inf)          ### sum of chicks is 232 ( sum(mean.props[1, c(1,2,4,5)]) <- only 4 study areas counted, so correct w proportion )
-  JUV[1] <- round(JUVnonround)
-  N.atseanonround ~ T(dnorm(224/2,sd = 20), 0, Inf)    ### unknown number, but assume about 65% breeding each year per Cuthbert 2003 (sum(POP[1, ]) * (1-0.65)) - CAN BE MANIPULATED
-  N.atsea[1] <- round(N.atseanonround)
-  Ntot[1]<-sum(IM[1,1:30,3]) + Ntot.breed[1]+N.atsea[1]  ## total population size is all the immatures plus adult breeders and adults at sea - does not include recruits in Year 1
   
+  Ntot.breed[1] ~ T(dnorm(640/2,sd = 20), 0, Inf)  ### sum of counts is 640 ( sum(POP[1, ]) <- across 11 study areas )
+  #Ntot.breed[1] ~ dcat(pNinits[1:ninits])
+  #Ntot.breed[1] <- round(Ntot.breednonround)
+  JUV[1] ~ T(dnorm(232/2, sd = 20), 0, Inf)          ### sum of chicks is 232 ( sum(mean.props[1, c(1,2,4,5)]) <- only 4 study areas counted, so correct w proportion )
+  #JUV[1] ~ dcat(pNinits[1:ninits])
+  #JUV[1] <- round(JUVnonround)
+  N.atsea[1] ~ T(dnorm(224/2,sd = 20), 0, Inf)    ### unknown number, but assume about 65% breeding each year per Cuthbert 2003 (sum(POP[1, ]) * (1-0.65)) - CAN BE MANIPULATED
+  #N.atsea[1] ~ dcat(pNinits[1:ninits])    ### unknown number, but assume about 65% breeding each year per Cuthbert 2003 (sum(POP[1, ]) * (1-0.65)) - CAN BE MANIPULATED
+  #N.atsea[1] <- round(N.atseanonround)
+  Ntot[1]<-sum(IM[1,1:30,3]) + round(Ntot.breed[1])+round(N.atsea[1])  ## total population size is all the immatures plus adult breeders and adults at sea - does not include recruits in Year 1
+  #N.ad.surv[1] <- 0
+  #N.breed.ready[1] <- 0
+  #nestlings[1] <- 0
   
   ### FOR EVERY SUBSEQUENT YEAR POPULATION PROCESS
   
@@ -250,6 +269,9 @@ code <- nimbleCode({
       # what is going on here
       #IM[tt,age,2] <- min(round(IM[tt,age-1,3]),IM[tt,age,1])*p.juv.recruit[age,tt]
       #IM[tt,age,2] <- IM[tt,age,1]*p.juv.recruit[age,tt]
+      
+      # AW idea - poisson might work better here (give it more wiggle/flexibility)
+      # poisson(IM*p.juv), could truncate too?
       IM[tt,age,2] ~ dbin(p.juv.recruit[age,tt], IM[tt,age,1])
       IM[tt,age,3] <- IM[tt,age,1] - IM[tt,age,2]
     }
@@ -367,7 +389,10 @@ const <- list(n.occasions = length(start:2021),
               prop.sites=mean.props,  ### need to calculate
               
               n.sites.fec=n.sites.fec,
-              n.years.fec= n.years.fec
+              n.years.fec= n.years.fec #, 
+              
+              # ninits = 1000, 
+              # pNinits = rep(1/1000, length.out = 1000)
 )
 
 #### INITIAL VALUES ####
@@ -402,9 +427,9 @@ for (j in 1:length(start:2020)) {
   ip.ad[j] <- tmp[goodyears$p.sel[j]] 
 }
 
-iN.ad.surv <- rep(999, n.years.fec)
-iN.breed.ready <- rep(999, n.years.fec)
-inestlings <- rep(999, n.years.fec)
+iN.ad.surv <- rep(0, n.years.fec)
+iN.breed.ready <- rep(0, n.years.fec)
+inestlings <- rep(0, n.years.fec)
 iN.recruits <- rep(NA, n.years.fec)
 iNtot.breed <- rep(NA, n.years.fec)
 iJUV <- rep(NA, n.years.fec)
@@ -412,13 +437,13 @@ iN.atsea <- rep(NA, n.years.fec)
 iNtot <- rep(NA, n.years.fec)
 IMinits <- array(NA, dim = c(n.years.fec, 30, 3))
 
-IMinits[1,1,1] = max(c(rnorm(1, 263*2, 20)), 0) %>% round() # TODO change sd???
-IMinits[1,2,1] = max(c(rnorm(1, 275*2, 20)), 0)%>% round()
-IMinits[1,3,1] = max(c(rnorm(1, 264*2, 20)), 0)%>% round()
-IMinits[1,4,1] = max(c(rnorm(1, 177*2, 20)), 0)%>% round()
-IMinits[1,5,1] = max(c(rnorm(1, 290*2, 20)), 0)%>% round()
-IMinits[1,6,1] = max(c(rnorm(1, 90*2, 20)), 0)%>% round()
-IMinits[1,7,1] = max(c(rnorm(1, 158*2, 20)), 0)%>% round()
+IMinits[1,1,1] = max(c(rnorm(1, 263*0.5, 20)), 1) %>% round() # TODO change sd???
+IMinits[1,2,1] = max(c(rnorm(1, 275*0.5, 20)), 1)%>% round()
+IMinits[1,3,1] = max(c(rnorm(1, 264*0.5, 20)), 1)%>% round()
+IMinits[1,4,1] = max(c(rnorm(1, 177*0.5, 20)), 1)%>% round()
+IMinits[1,5,1] = max(c(rnorm(1, 290*0.5, 20)), 1)%>% round()
+IMinits[1,6,1] = max(c(rnorm(1, 90*0.5, 20)), 1)%>% round()
+IMinits[1,7,1] = max(c(rnorm(1, 158*0.5, 20)), 1)%>% round()
 
 IMinits[1, 1, 2] <- 0
 IMinits[1, 1, 3] <- IMinits[1,1,1] - IMinits[1,1,2]
@@ -429,9 +454,11 @@ for (age in 2:7) {
 }
 
 for (age in 8:30) {
-  IMinits[1, age, 1] = rbinom(1, IMinits[1, age-1, 3], pow(0.9,(age-1)))
+  #IMinits[1, age, 1] = rbinom(1, IMinits[1, age-1, 3], pow(0.9,(age-1)))
+  # AEB change
+  IMinits[1, age, 1] = rbinom(1, IMinits[1, age-1, 3], 0.9)
   IMinits[1, age, 2] <- rbinom(1, IMinits[1, age, 1], p.juv.recruit.f.inits[age])
-  print(paste(age, IMinits[1,age,1] - IMinits[1,age,2], sep = " "))
+  # print(paste(age, IMinits[1,age,1] - IMinits[1,age,2], sep = " "))
   IMinits[1, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
 }
 
@@ -439,10 +466,10 @@ IMinits[1, , ]
 IMinits[,, 1]
 
 iN.recruits[1] <- sum(IMinits[1,1:30,2]) 
-iNtot.breed[1] <- rnorm(1, 640*2,sd = 20)  %>% round()#change here
+iNtot.breed[1] <- max(rnorm(1, 640*0.5,sd = 20), 1) %>% round()#change here
 
-iJUV[1] <- rnorm(1, 232*2, sd = 20) %>% round()
-iN.atsea[1] <- rnorm(1, 224*2,sd = 20)%>% round() #change here
+iJUV[1] <- max(rnorm(1, 232*0.5, sd = 20), 1) %>% round()
+iN.atsea[1] <- max(rnorm(1, 224*0.5,sd = 20), 1) %>% round() #change here
 iNtot[1]<-sum(IMinits[1,1:30,3]) + iNtot.breed[1]+iN.atsea[1]  
 
 for (tt in 2:n.years.fec) {
@@ -479,16 +506,16 @@ mean(iNtot.breed * mean.props[1:13, ] - POP[1:13, ])
 
 # logic check
 # there should not be negatives here
-  for (year in 2:n.years.fec) {
-    for(age in 2:30) {
-    print(paste(year, age, IMinits[year-1, age-1, 3] - IMinits[year, age, 1] , sep = ' '))
-  }
-}
+#   for (year in 2:n.years.fec) {
+#     for(age in 2:30) {
+#     print(paste(year, age, IMinits[year-1, age-1, 3] - IMinits[year, age, 1] , sep = ' '))
+#   }
+# }
 
 inits <- list(
   ann.fec = iann.fec,
   
-  sigma.obs=matrix(rexp(n.sites.count*n.years.count, 0.1),ncol=n.years.count),
+  sigma.obs=matrix(rexp(n.sites.count*n.years.fec, 0.1),ncol=n.years.fec),
   
   p.juv.recruit.f = p.juv.recruit.f.inits,
   p.juv.recruit = p.juv.recruit.inits,
@@ -518,13 +545,9 @@ inits <- list(
    
   p.ad = ip.ad,
   # 
-  eps.p = rep(0, length(start:2021)-1),
+  eps.p = rep(0, length(start:2021)-1) ,
   # 
   # maybe better to not do this below
-  IMnonround = IMinits[1, 1:7, 1],
-  Ntot.breednonround = iNtot.breed[1],
-  JUVnonround = iJUV[1],
-  N.atseanonround = iN.atsea[1],
   IM = IMinits, # TODO
   N.ad.surv = iN.ad.surv,
   N.breed.ready = iN.breed.ready,
@@ -536,41 +559,69 @@ inits <- list(
   Ntot = iNtot
   
   #####
-)
+) 
 
 
 #### PARAMETERS TO MONITOR ####
+
+# TODO - add more here
+
 params <- c(
   # SURVIVAL
-  "mean.phi.juv", "mean.phi.ad", "sigma.phi", 
-  "mu.p.juv", "mean.p.ad", "agebeta", "sigma.p",
+  #"mean.phi.juv", "mean.phi.ad", "sigma.phi", "eps.phi",
+  #"mu.p.juv", "mean.p.ad", "agebeta", "sigma.p", "eps.p",
   # FECUNDITY
-  "ann.fec",
+  #"ann.fec",
   # ABUNDANCE
-  "Ntot", "Ntot.breed", "N.atsea", 
-  "sigma.obs"
+  "Ntot", "Ntot.breed", "N.atsea", "N.ad.surv", "N.breed.ready", "N.recruits", "nestlings", "JUV", "IM"#,
+
+  #"sigma.obs"
   # FUTURE
-  #"fut.growth.rate", "fut.lambda", 
+  #"fut.growth.rate", "fut.lambda",
   #"Nobs.f"
 )
 
+# params <- c(
+#   # SURVIVAL
+#   "IM",
+# )
+
 #### MCMC SETTINGS ####
-nb <- 25000 #burn-in
-ni <- 200000 + nb #total iterations
-nt <- 1  #thin
+nb <- 0#100#000 #burn-in
+ni <- 20000#000 + 100000 #nb #total iterations
+nt <- 1#10  #thin
 nc <- 3  #chains
+#adaptInterval = 10
+#adaptInterval = 100
 adaptInterval = 100
 maxContractions = 1000
+#scale = 1 # as opposed to ???
+#scale = 0.1 # as opposed to ???
+scale = 1 # as opposed to ???
+sliceWidth = 5
+
 
 #### COMPILE CONFIGURE AND BUILD ####
+
+# something else to try
+#nimbleOptions(buildInterfacesForCompiledNestedNimbleFunctions = TRUE)
+#nimbleOptions(MCMCsaveHistory = TRUE)
+
 Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
-                      check = FALSE, calculate = FALSE, inits = inits)
+                      check = FALSE, calculate = TRUE, inits = inits)
+
 Rmodel$initializeInfo()
 conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
                       control = list(maxContractions = maxContractions, 
-                                     adaptInterval = adaptInterval)) # SLOWW
-conf$printSamplers(type = "conjugate")
-conf$printSamplers(type = "posterior") # check sampler defaults
+                                     #adaptInterval = adaptInterval,
+                                     #scale = scale, 
+                                     #sliceWidth = sliceWidth
+                                     ), 
+                      autoBlock = TRUE) # SLOWW
+# conf$printSamplers(type = "conjugate")
+# conf$printSamplers(type = "posterior") # check sampler defaults
+# conf$printSamplers(type = "slice")
+# conf$printSamplers(type = 'RW')
 
 # conf$removeSamplers("ann.fec")
 # conf$addSampler(target = "ann.fec[1]", type="conjugate")
@@ -589,22 +640,96 @@ conf$printSamplers(type = "posterior") # check sampler defaults
 # juveniles and annual fecundity
 
 Rmcmc <- buildMCMC(conf)  
+
 Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 library(beepr)
 beep(sound = 1)
 
+#Cmcmc$run(2000, reset = TRUE, resetMV = TRUE)
+
+# conf$getSamplers()[[161]] # to check that this sampler is beta0
+# conf$getSamplers()[[248]] # to check that this sampler is beta0
+# conf$getSamplers()[[259]] # to check that this sampler is beta1
+
+# accepts <- Cmcmc$samplerFunctions[[161]]$getAcceptanceHistory()
+# scales <- Cmcmc$samplerFunctions[[161]]$getScaleHistory()
+# width1 <- Cmcmc$samplerFunctions[[248]]$getWidthHistory()
+# width2 <- Cmcmc$samplerFunctions[[259]]$getWidthHistory()
+
+#width <- Cmcmc$samplerFunctions[[310]]$getWidthHistory()
+#width
+
+# outList <- as.list(Cmcmc$mvSamples)
+# 
+# ypos <- function(ht) {
+#   usr <- par("usr")
+#   usr[3] + ht*(usr[4] - usr[3])
+# }
+# 
+# 
+# plot(outList$IM[,4, 8, 2], type='l', ylab="sigma")
+# abline(v=0:20*100, col='red')
+# text(x=0:19*100 + 50, y=ypos(0.9), round(width, 2), col='red')
+
+
 #### RUN MCMC ####
 t.start <- Sys.time()
 #sink("somanyerrors.txt")
+
 out <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
+#out2 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
+#              setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE)
 #sink()
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
-# error.vec <- read_lines("somanyerrors.txt")
-# error.vec <- error.vec[str_detect(error.vec, "") & 
-#   !str_detect(error.vec, "lifted") &
-#   !str_detect(error.vec, "slice")] %>% unique() #%>% sort()
-# write_lines(error.vec, "somanyerrors.txt")
+
+error.vec <- read_lines("somanyerrors.txt")
+error.vec <- error.vec[str_detect(error.vec, "") &
+  !str_detect(error.vec, "lifted") &
+  !str_detect(error.vec, "slice")] %>% unique() #%>% sort()
+write_lines(error.vec, "somanyerrors.txt")
+
+#saveRDS(out, paste(Sys.Date(), "AYNAout.RDS", sep = ""))
+
+# current weirdnesses
+# ntot breed 
+# sigma.p
+# sigma.phi
+# not mixing
+
+#assign("out", `2022-04-01 AYNAout`)
+
+#sum <- summary(out, na.rm = TRUE)
+# pdf()
+# plot(out)
+# dev.off()
+ 
+gd <- gelman.diag(out, multivariate = FALSE)$psrf
+gd <- gd[is.na(gd[, 1]) | is.infinite(gd[, 1]), ]
+
+#gd2 <- gelman.diag(out2, multivariate = FALSE)$psrf
+#gd2 <- gd2[is.na(gd2[, 1]) | is.infinite(gd2[, 1]), ]
+View(gd)
+#View(gd2)
+
+problemnodes <- out$chain1 %>% as.tibble %>% select(rownames(gd))
+View(problemnodes)
+
+effectiveSize(out) %>% sort() %>% rev()
+
+problematicnodes <- lapply(out, "[", , rownames(gd)) %>% as.mcmc()
+pdf("sadplots.pdf")
+#plot(out)
+par(mfrow = c(3, 2))
+traceplot(out)
+par(mfrow = c(1,1))
+dev.off()
+pdf("sadplots-refined.pdf")
+par(mfrow = c(3, 2))
+traceplot(problematicnodes)
+par(mfrow = c(1,1))
+dev.off()
+
