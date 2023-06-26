@@ -151,8 +151,8 @@ code <- nimbleCode({
     for (j in 1:t){ ## zero by definition (these are never actually used)
       p.juv[t,j] <- 0
     }
-    for (j in (t+1):(n.occasions-1)){
-      logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
+    for (j in (t+1):(n.occasions)){
+      logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j-1]
     }
   }
   
@@ -194,10 +194,10 @@ code <- nimbleCode({
   
   # Define the cell probabilities of the m-arrays
   # Main diagonal
-  for (t in 1:(n.occasions-1)){
+  for (t in 1:(n.occasions-2)){
     q.ad[t] <- 1-p.ad[t]            # Probability of non-recapture
     
-    for(j in 1:(n.occasions-1)){
+    for(j in 1:(n.occasions-2)){
       q.juv[t,j] <- 1 - p.juv[t,j]
     }    
     
@@ -216,6 +216,21 @@ code <- nimbleCode({
       pr.a[t,j] <- 0
     } #j
   } #t
+  
+  q.ad[n.occasions-1] <- 1-p.ad[n.occasions-1]   
+  for(j in 1:(n.occasions-1)){
+    q.juv[n.occasions-1,j] <- 1 - p.juv[n.occasions-1,j]
+  }   
+  
+  pr.j[n.occasions-1,n.occasions-1] <- 0
+  pr.a[n.occasions-1,n.occasions-1] <- phi.ad[n.occasions-1]*p.ad[n.occasions-1]
+  
+  # no above main diagonal
+  
+  for (j in 1:(n.occasions-2)){
+    pr.j[n.occasions-1,j] <- 0
+    pr.a[n.occasions-1,j] <- 0
+  } #j
   
   # Last column: probability of non-recapture
   for (t in 1:(n.occasions-1)){
@@ -274,7 +289,7 @@ Rmodel$calculate()
 
 
 conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
-                      control = list(maxContractions = maxContractions, 
+                      control = list(#maxContractions = maxContractions, 
                                      adaptInterval = adaptInterval)) # SLOWW
 # lots of initial model checking you can do by exploring conf
 # if you wanted to change samplers this is where you would do that
@@ -304,7 +319,7 @@ Rmcmc <- buildMCMC(conf)
 Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 library(beepr)
-beep(sound = 8)
+beep(sound = 1)
 
 #### RUN MCMC ####
 t.start <- Sys.time()

@@ -3,14 +3,23 @@ library(nimble)
 library(jagsUI)
 library(coda)
 library(doParallel) 
+library(tidyverse)
+library(tidybayes)
+library(strex)
+library(beepr)
 
 #### LOAD DATA ####
 load("IPM_AEB_dat.RData")
+const <- c(const, maxAge = const$n.occasions)
 
 #### LOAD INITS #####
-load("IPM_AEB_inits.Rdata")
+# TODO uncomment
+#load("IPM_AEB_inits.Rdata")
 
-const <- c(const, maxAge = const$n.occasions)
+# TODO
+# run this in both jags and nimble for a sanity check
+# limited variability in goodyear - do we want to change threshold?
+# how do we want to deal with max age
 
 #### MODEL CODE ####
 code <- nimbleCode({
@@ -24,16 +33,29 @@ code <- nimbleCode({
   # -------------------------------------------------
   
   for (t in 1:n.years.fec){  
-    ann.fec[t] ~ dbeta(32,68)
+    #ann.fec[t] ~ dbeta(32,68) 
+    ann.fec[t] ~ dbeta(10,10) # AEB change, more variation in data
+    
   } # t
   
   # -------------------------------------------------        
   # 1.2. Priors and constraints FOR POPULATION COUNTS
   # -------------------------------------------------
-  for (s in 1:n.sites.count){		### start loop over every study area
-    for (t in 1:n.years.fec){		### start loop over every year
-      sigma.obs[s,t] ~ dexp(1)	#Prior for SD of observation process (variation in detectability)
-    } # t
+  
+  # variation in detectability
+  # spatial level - if counts are meaningfully different sigma probably proportional
+  # temportal level - some years are a data disaster
+  
+  # option 1 - just index by s
+  # for (s in 1:n.sites.count){
+  #     sigma.obs[s] ~ dexp(1)
+  # } # s
+
+  # option 2 - index by s and goodyear/badyear
+  for (s in 1:n.sites.count){
+    for (gy in 1:2){  
+      sigma.obs[s, gy] ~ dexp(0.1)	# AEB changed, feel like this has enough variability to capture different scales of site-specific counts, with bulk of probability near 0
+    }
   } # s
   
   # -------------------------------------------------        
@@ -41,18 +63,20 @@ code <- nimbleCode({
   # -------------------------------------------------
   
   ### RECAPTURE PROBABILITY
-  
-  mean.p.ad[1] ~ dunif(0.05, 0.5)	      
-  mean.p.ad[2] ~ dunif(0.2, 1)	       
+  #mean.p.ad[1] ~ dunif(0.05, 0.5)	# low detection
+  mean.p.ad[1] ~ dbeta(8.3, 25)	# low detection
+  #mean.p.ad[2] ~ dunif(0.05, 0.5)	# low detection
+  mean.p.ad[2] ~ dbeta(10, 5) # high detection     
   
   for (gy in 1:2){  
     mu.p.juv[gy] ~ dnorm(-4, sd = 0.25) 
     mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) 
   }
   
-  agebeta ~ dnorm(1, sd = 0.01) # Prior for shape of increase in juvenile recapture probability with age
+  # Prior for shape of increase in juvenile recapture probability with age
+  agebeta ~ dnorm(2, sd = 0.25) # AEB change
   
-  sigma.p ~ dexp(1) 
+  sigma.p ~ dexp(10) # AEB change, reduce variability 
   
   ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY...
   for (t in 1:(n.occasions-1)){
@@ -61,28 +85,34 @@ code <- nimbleCode({
     for (j in 1:t){ 
       p.juv[t,j] <- 0
     }
+    # TODO - this indexing is off...
     for (j in (t+1):(n.occasions-1)){
+      logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*sqrt(j - t) + eps.p[j]
       #logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
-      logit(p.juv[t,j])  <- r.e[j - t] + eps.p[j]
+      #logit(p.juv[t,j])  <- r.e[j - t] + eps.p[j]
     }
     
     # ...FOR ADULTS
-    logit(p.ad[t])  <- mu.p.ad[goodyear[t]]  + eps.p[t]  
+    logit(p.ad[t])  <- mu.p.ad[goodyear[t]] + eps.p[t]  
     eps.p[t] ~ dnorm(0, sd = sigma.p)
   }
   
   ### SURVIVAL PROBABILITY
-  mean.phi.juv ~ dbeta(75.7,24.3)            
-  mean.phi.ad ~ dbeta(91,9)              
+  #mean.phi.juv ~ dbeta(75.7,24.3)  
+  mean.phi.juv ~ dbeta(10.75, 3.5)            
+  #mean.phi.ad ~ dbeta(91,9) 
+  mean.phi.ad ~ dbeta(50,2)              
   
   mu.juv <- log(mean.phi.juv / (1-mean.phi.juv)) # Logit transformation
   mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
   
-  sigma.phi ~ dexp(1) 
+  sigma.phi ~ dexp(10) # AEB changed, don't want this huge
   
   ## RANDOM TIME EFFECT ON SURVIVAL
   for (j in 1:(n.occasions-1)){
-    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j]
+    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] # TODO - does this even matter?
+    # there is already a lot of variability in phi.juv, don't think eps.phi matters as much for this age class
+    # more important for adults
     logit(phi.ad[j]) <- mu.ad + eps.phi[j] 
     eps.phi[j] ~ dnorm(0, sd = sigma.phi) 
   }
@@ -97,36 +127,43 @@ code <- nimbleCode({
   
   ### RECRUIT PROBABILITY ###
   for (age in 1:maxAge) {
-    #logit(p.juv.recruit.f[age]) <- mu.p.juv[2] + (agebeta * age/2)
-    r.e[age] ~ dunif(-8, 8)
-    logit(p.juv.recruit.f[age]) <- r.e[age]
+    logit(p.juv.recruit.f[age]) <- mu.p.juv[2] + agebeta*sqrt(age)
+    #r.e[age] ~ dunif(-5, 5) 
+    #logit(p.juv.recruit.f[age]) <- r.e[age]
   }
   
-  IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
+  #IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
+  IM[1,1,1] ~ dpois(263/2)
   IM[1,1,2] <- 0
   IM[1,1,3] <- round(IM[1,1,1]) - IM[1,1,2]
   
-  IM[1,2,1] ~ T(dnorm(275/2,sd = 20), 0, Inf)
+  #IM[1,2,1] ~ T(dnorm(275/2,sd = 20), 0, Inf)
+  IM[1,2,1] ~ dpois(275/2)
   IM[1,2,2] ~ dbin(p.juv.recruit.f[2], round(IM[1,2,1]))
   IM[1,2,3] <- round(IM[1,2,1]) - IM[1,2,2]
   
-  IM[1,3,1] ~ T(dnorm(264/2,sd = 20), 0, Inf)
+  #IM[1,3,1] ~ T(dnorm(264/2,sd = 20), 0, Inf)
+  IM[1,3,1] ~ dpois(264/2)
   IM[1,3,2] ~ dbin(p.juv.recruit.f[3], round(IM[1,3,1]))
   IM[1,3,3] <- round(IM[1,3,1]) - IM[1,3,2]
   
-  IM[1,4,1] ~ T(dnorm(177/2,sd = 20), 0, Inf) 
+  #IM[1,4,1] ~ T(dnorm(177/2,sd = 20), 0, Inf) 
+  IM[1,4,1] ~ dpois(177/2)
   IM[1,4,2] ~ dbin(p.juv.recruit.f[4], round(IM[1,4,1]))
   IM[1,4,3] <- round(IM[1,4,1]) - IM[1,4,2]
   
-  IM[1,5,1] ~ T(dnorm(290/2,sd = 20), 0, Inf)
+  #IM[1,5,1] ~ T(dnorm(290/2,sd = 20), 0, Inf)
+  IM[1,5,1] ~ dpois(290/2)
   IM[1,5,2] ~ dbin(p.juv.recruit.f[5], round(IM[1,5,1]))
   IM[1,5,3] <- round(IM[1,5,1]) - IM[1,5,2]
   
-  IM[1,6,1] ~ T(dnorm(90/2,sd = 20), 0, Inf) 
+  #IM[1,6,1] ~ T(dnorm(90/2,sd = 20), 0, Inf) 
+  IM[1,6,1] ~ dpois(90/2)
   IM[1,6,2] ~ dbin(p.juv.recruit.f[6], round(IM[1,6,1]))
   IM[1,6,3] <- round(IM[1,6,1]) - IM[1,6,2]
   
-  IM[1,7,1] ~ T(dnorm(158/2,sd = 20), 0, Inf)
+  #IM[1,7,1] ~ T(dnorm(158/2,sd = 20), 0, Inf)
+  IM[1,7,1] ~ dpois(158/2)
   IM[1,7,2] ~ dbin(p.juv.recruit.f[7], round(IM[1,7,1]))
   IM[1,7,3] <- round(IM[1,7,1]) - IM[1,7,2]
   
@@ -139,10 +176,13 @@ code <- nimbleCode({
   N.recruits[1] <- sum(IM[1,1:maxAge,2]) 
   N.ad.surv[1] <- 0
   N.breed.ready[1] <- 0
-  Ntot.breed[1] ~ T(dnorm(640/2,sd = 20), 0, Inf)  
-  N.atsea[1] ~ T(dnorm(224/2,sd = 20), 0, Inf)    
+  #Ntot.breed[1] ~ T(dnorm(640/2,sd = 20), 0, Inf)  
+  Ntot.breed[1] ~ dpois(640/2)  
+  #N.atsea[1] ~ T(dnorm(224/2,sd = 20), 0, Inf)    
+  N.atsea[1] ~ dpois(224/2)    
   nestlings[1] <- 0
-  JUV[1] ~ T(dnorm(232/2, sd = 20), 0, Inf)         
+  #JUV[1] ~ T(dnorm(232/2, sd = 20), 0, Inf)         
+  JUV[1] ~ dpois(232/2)         
   
   Ntot[1]<-sum(IM[1,1:maxAge,3]) + round(Ntot.breed[1])+round(N.atsea[1]) 
   
@@ -151,7 +191,8 @@ code <- nimbleCode({
   for (tt in 2:n.years.fec){
     for (age in 1:maxAge) {
       # logit(p.juv.recruit[age,tt])<- mu.p.juv[2] + eps.p[tt+offset-1] + (agebeta / 2 * age) 
-      logit(p.juv.recruit[age, tt]) <- r.e[age] + eps.p[tt+offset-1]
+      # logit(p.juv.recruit[age, tt]) <- r.e[age] + eps.p[tt+offset-1]
+      logit(p.juv.recruit[age,tt]) <- mu.p.juv[2] + eps.p[tt+offset-1] + agebeta * sqrt(age)
     }
     
     ## IMMATURE MATRIX WITH 3 columns:
@@ -173,7 +214,7 @@ code <- nimbleCode({
     N.breed.ready[tt] ~ dbin(p.ad[tt+offset-1], N.ad.surv[tt]) ### number of available breeders is proportion of survivors that returns
     Ntot.breed[tt]<- N.breed.ready[tt]+N.recruits[tt]  ### number of counted breeders is sum of old breeders returning and first recruits
     N.atsea[tt] <- N.ad.surv[tt]-N.breed.ready[tt] ### potential breeders that remain at sea
-    nestlings[tt] <- round(ann.fec[tt] * 0.5 * Ntot.breed[tt]) ### nestlings produced                                                  
+    nestlings[tt] <- round(ann.fec[tt] * 0.5 * Ntot.breed[tt]) ### nestlings produced, half are female                                                 
     JUV[tt] ~ dpois(nestlings[tt]) ### juveniles produced
     
     ### THE TOTAL POPULATION ###
@@ -185,18 +226,15 @@ code <- nimbleCode({
   # 2.2. Observation process for population counts: state-space model of annual counts
   # -------------------------------------------------
   
-  for (s in 1:n.sites.count){	
-    for (t in 1:n.years.fec){
-      y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[t,s], sd = sigma.obs[s, t]) #TODO - think through how to model this
-      # spatial level - if counts are meaningfully sigma probably proportional
-      # temportal level - some years are a data disaster
-      
-      # option 1 - just index by s
-      # option 2 - index by s and goodyear/badyear[t]
-      
-      # run this in both jags and nimble for a sanity check
-    }	# t
-  }	# s
+  # for (s in 1:n.sites.count){
+  #   for (t in 1:n.years.fec){
+  #     # option 1
+  #     #y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[t,s], sd = sigma.obs[s])
+  #     # option 2
+  #     # TODO - counts are not sex-specific, multiply by two since model is female only
+  #     y.count[t,s] ~ T(dnorm(Ntot.breed[t]*prop.sites[t,s]*2, sd = sigma.obs[s, goodyear[offset + t - 1]]), 0, Inf)
+  #     }	# t
+  # }	# s
   
   # -------------------------------------------------
   # 2.3. Likelihood for fecundity: Logistic regression from the number of surveyed broods
@@ -229,6 +267,7 @@ code <- nimbleCode({
     pr.a[t,t] <- phi.ad[t]*p.ad[t]
     
     # Above main diagonal
+    # TODO this indexing is off too
     for (j in (t+1):(n.occasions-1)){
       pr.j[t,j] <- phi.juv[t]*prod(phi.ad[(t+1):j])*prod(q.juv[t,t:(j-1)])*p.juv[t,j]
       pr.a[t,j] <- prod(phi.ad[t:j])*prod(q.ad[t:(j-1)])*p.ad[j]
@@ -251,31 +290,46 @@ code <- nimbleCode({
 
 #### PARAMETERS TO MONITOR ####
 params <- c(
-  "Ntot", "Ntot.breed", "N.atsea", "N.ad.surv", 
-  "N.breed.ready", "N.recruits", "nestlings", "JUV", "IM"
+  # FECUNDITY
+  "ann.fec",
+  
+  # COUNTS
+  "sigma.obs", 
+  
+  # SURVIVAL
+  "mean.phi.juv", "mean.phi.ad", "sigma.phi", "eps.phi",
+  "mu.p.juv", "mean.p.ad", "agebeta", "sigma.p", "eps.p"#,
+  
+  # ABUNDANCE
+  #"Ntot", "Ntot.breed", "N.atsea", "N.ad.surv", 
+  #"N.breed.ready", "N.recruits", "nestlings", "JUV", "IM"
 )
 
 #### MCMC SETTINGS ####
 nb <- 0 #burn-in
-ni <- 20000 #total iterations
+ni <- 200#00 #total iterations
 nt <- 1 # thin
 nc <- 3  #chains
 adaptInterval = 200
-maxContractions = 1000
-scale = 1
-sliceWidth = 1
+#maxContractions = 1000
+#scale = 1
+#sliceWidth = 1
 
 #### COMPILE CONFIGURE AND BUILD ####
-Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
-                      check = FALSE, calculate = FALSE)
+Rmodel <- nimbleModel(code = code, constants = const, 
+                      data = dat, 
+                      inits = inits,
+                      check = TRUE, calculate = TRUE)
 conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
-                      control = list(maxContractions = maxContractions, 
-                                     adaptInterval = adaptInterval,
-                                     scale = scale, 
-                                     sliceWidth = sliceWidth)) 
+                      control = list(adaptInterval = adaptInterval#,
+                                     #maxContractions = maxContractions, 
+                                     #scale = scale, 
+                                     #sliceWidth = sliceWidth
+                                     )) 
 Rmcmc <- buildMCMC(conf)  
 Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
+beep(sound = 1)
 
 #### RUN MCMC ####
 
@@ -286,6 +340,14 @@ out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
                 setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE)
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
+
+rhat <- gelman.diag(out1, multivariate = FALSE)
+beep(sound = 1)
+tmp <- rhat$psrf %>% 
+  as.data.frame() %>% 
+  filter(is.infinite(`Point est.`)|is.nan(`Point est.`)) %>% 
+  rownames_to_column() %>% filter(!str_detect(rowname, "IM")) %>% 
+  filter(!(str_first_number(rowname) == 1))
 
 
 # without inits - slice sampler errors
