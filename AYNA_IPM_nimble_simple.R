@@ -158,7 +158,7 @@ code <- nimbleCode({
   # TODO - should it be a binomial function on the twos
   # TODO consider replacing the nonrounded things with a discrete uniform
   
-  IMnonround[1] ~ T(dnorm(263/2,sd = 20), 0, Inf)   ### number of 1-year old survivors in 2007 (700*0.5*0.5) - CAN BE MANIPULATED
+  IMnonround[1] ~ T(dnorm(263/2,sd = 20), 0, Inf)   ### number of 1-year old survivors in 2007 (700*0.5*0.75) - CAN BE MANIPULATED
   #IM[1,1,1] ~ dcat(pNinits[1:ninits])
   IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
   IM[1,1,2] <- 0

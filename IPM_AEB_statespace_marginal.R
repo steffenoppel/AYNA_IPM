@@ -8,18 +8,21 @@ library(tidybayes)
 library(strex)
 library(beepr)
 library(postpack)
+library(nimbleEcology)
 
 #### LOAD DATA ####
-load("IPM_AEB_dat.RData")
-const <- c(const, maxAge = const$n.occasions)
+load("IPM_AEB_dat_stateSpace_marginal.RData") 
 
 #### LOAD INITS #####
-load("IPM_AEB_inits.Rdata") # may need to change these
+load("IPM_AEB_inits_stateSpace_marginal.Rdata") 
 
 # TODO
-# run this in both jags and nimble for a sanity check
 # limited variability in goodyear - do we want to change threshold?
-# how do we want to deal with max age
+# same question with juv.possible
+# debug dHMM
+# add back informed priors
+# deal with sigma obs
+# consider blocking?
 
 #### MODEL CODE ####
 code <- nimbleCode({
@@ -33,50 +36,39 @@ code <- nimbleCode({
   # -------------------------------------------------
   
   for (t in 1:n.years.fec){  
-    #ann.fec[t] ~ dbeta(32,68) 
     ann.fec[t] ~ dbeta(10,10) # AEB change, more variation in data
-    
   } # t
   
   # -------------------------------------------------        
   # 1.2. Priors and constraints FOR POPULATION COUNTS
   # -------------------------------------------------
   
-  # variation in detectability
-  # spatial level - if counts are meaningfully different sigma probably proportional
-  # temportal level - some years are a data disaster
-  
-  # option 1 - just index by s
-  # for (s in 1:n.sites.count){
-  #     sigma.obs[s] ~ dexp(1)
-  # } # s
-
   # option 2 - index by s and goodyear/badyear
   for (s in 1:n.sites.count){
-    for (gy in 1:2){  
-      sigma.obs[s, gy] ~ dexp(0.1)	# AEB changed, feel like this has enough variability to capture different scales of site-specific counts, with bulk of probability near 0
-    }
+    sigma.obs[s] ~ dexp(0.1)
   } # s
   
   # -------------------------------------------------        
   # 1.3. Priors and constraints FOR SURVIVAL
   # -------------------------------------------------
   
-  
-  
+  # TODO - whole section needs to change
+  mean.p.in ~ dbeta(1,1) 
+  mean.p.propensity ~ dbeta(1,1) # TODO make this higher
+  mean.p.det ~ dnorm(0,sd = 1.5) # TODO make this higher
+  sigma.p.det ~ dexp(10)
+
+  for (t in 1:n.occasions) {
+    eps.det[t] ~ dnorm(0, sd = sigma.p.det)
+    logit(p.det[t]) <- mean.p.det + eps.det[t]
+  }
   
   ### RECAPTURE PROBABILITY
-  #mean.p.ad[1] ~ dunif(0.05, 0.5)	# low detection
   #mean.p.ad[1] ~ dbeta(8.3, 25)	# low detection
-  mean.p.ad[1] ~ dbeta(1, 1)	# low detection
-  #mean.p.ad[2] ~ dunif(0.2, 1)	# low detection
-  #mean.p.ad[2] ~ dbeta(10, 5) # high detection 
-  mean.p.ad[2] ~ dbeta(1, 1) # high detection     
+  mean.p.ad ~ dbeta(1, 1)	# low detection, # TODO make this higher? Or is this the same as propensity?
   
-  for (gy in 1:2){  
-    mu.p.juv[gy] ~ dnorm(-4, sd = 0.25) 
-    mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) 
-  }
+  mu.p.juv ~ dnorm(-4, sd = 0.25) 
+  mu.p.ad <- log(mean.p.ad / (1-mean.p.ad)) 
   
   # Prior for shape of increase in juvenile recapture probability with age
   #agebeta ~ dnorm(2, sd = 0.25) # AEB change
@@ -86,27 +78,24 @@ code <- nimbleCode({
   
   ## RANDOM TIME EFFECT ON RESIGHTING PROBABILITY...
   for (t in 1:(n.occasions-1)){
-    
     # ...FOR JUVENILES
     for (j in 1:t){ 
       p.juv[t,j] <- 0
     }
     for (j in (t+1):(n.occasions)){
-      logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*sqrt(j - t) + eps.p[j-1]
-      #logit(p.juv[t,j])  <- mu.p.juv[goodyear[j]] + agebeta*(j - t)/2 + eps.p[j]
-      #logit(p.juv[t,j])  <- r.e[j - t] + eps.p[j]
+      logit(p.juv[t,j])  <- mu.p.juv + agebeta*sqrt(j - t) + eps.p[j-1]
+      
+      mean.p.recruit[1, t, j] <- p.juv[t, j]
+      mean.p.recruit[2, t, j] <- p.ad[t]
     }
-    
     # ...FOR ADULTS
-    logit(p.ad[t])  <- mu.p.ad[goodyear[t]] + eps.p[t]  
+    logit(p.ad[t])  <- mu.p.ad + eps.p[t]  
     eps.p[t] ~ dnorm(0, sd = sigma.p)
   }
   
   ### SURVIVAL PROBABILITY
-  #mean.phi.juv ~ dbeta(75.7,24.3)  
   #mean.phi.juv ~ dbeta(10.75, 3.5)   
   mean.phi.juv ~ dbeta(1, 1)            
-  #mean.phi.ad ~ dbeta(91,9) 
   #mean.phi.ad ~ dbeta(50,2)  
   mean.phi.ad ~ dbeta(1,1)              
   
@@ -122,6 +111,9 @@ code <- nimbleCode({
     # more important for adults
     logit(phi.ad[j]) <- mu.ad + eps.phi[j] 
     eps.phi[j] ~ dnorm(0, sd = sigma.phi) 
+    
+    mean.phi[1, j] <- phi.juv[j]
+    mean.phi[2, j] <- phi.ad[j]
   }
   
   #-------------------------------------------------  
@@ -134,9 +126,7 @@ code <- nimbleCode({
   
   ### RECRUIT PROBABILITY ###
   for (age in 1:maxAge) {
-    logit(p.juv.recruit.f[age]) <- mu.p.juv[2] + agebeta*sqrt(age)
-    #r.e[age] ~ dunif(-5, 5) 
-    #logit(p.juv.recruit.f[age]) <- r.e[age]
+    logit(p.juv.recruit.f[age]) <- mu.p.juv + agebeta*sqrt(age)
   }
   
   #IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
@@ -205,9 +195,7 @@ code <- nimbleCode({
   
   for (tt in 2:n.years.fec){
     for (age in 1:maxAge) {
-      # logit(p.juv.recruit[age,tt])<- mu.p.juv[2] + eps.p[tt+offset-1] + (agebeta / 2 * age) 
-      # logit(p.juv.recruit[age, tt]) <- r.e[age] + eps.p[tt+offset-1]
-      logit(p.juv.recruit[age,tt]) <- mu.p.juv[2] + eps.p[tt+offset-1] + agebeta * sqrt(age)
+      logit(p.juv.recruit[age,tt]) <- mu.p.juv + eps.p[tt+offset-1] + agebeta * sqrt(age)
     }
     
     ## IMMATURE MATRIX WITH 3 columns:
@@ -245,12 +233,8 @@ code <- nimbleCode({
   
   for (s in 1:n.sites.count){
     for (t in 1:n.years.fec){
-      # option 1
-      #y.count[t,s] ~ dnorm(Ntot.breed[t]*prop.sites[t,s], sd = sigma.obs[s])
-      # option 2
-      # TODO - counts are not sex-specific, multiply by two since model is female only
-      y.count[t,s] ~ T(dnorm(Ntot.breed[t]*prop.sites[t,s]*2, sd = sigma.obs[s, goodyear[offset + t - 1]]), 0, Inf)
-      }	# t
+      y.count[t,s] ~ T(dnorm(Ntot.breed[t]*prop.sites[t,s]*2, sd = sigma.obs[s]), 0, Inf)
+    }	# t
   }	# s
   
   # -------------------------------------------------
@@ -265,61 +249,117 @@ code <- nimbleCode({
   # 2.4. Likelihood for adult and juvenile survival from CMR
   # -------------------------------------------------
   #
-  # Define the multinomial likelihood
-  for (t in 1:(n.occasions-1)){
-    marr.j[t,1:n.occasions] ~ dmulti(pr.j[t,1:n.occasions], r.j[t])
-    marr.a[t,1:n.occasions] ~ dmulti(pr.a[t,1:n.occasions], r.a[t])
+  for (i in 1:n.inds) {
+    # Z[i, t] ~ dcat(trans.mat[i, t, Z[i, t-1], 1:7])
+    # Y[i, t] ~ dcat(obs.mat[t, Z[i, t], 1:2])
+    
+    Y[i, first[i]:n.occasions] ~ dDHMMo(init = init[i, 1:7], # initial state probabilities, provide this as data (1s and 0s, assuming first state known)
+                                        probObs = obs.mat[i, 1:7, 1:2, first[i]:n.occasions], # time dependent 3d array (index by i) [nstates, nevents, t]; assume known at first and provide as data
+                                        probTrans = trans.mat[i, 1:7, 1:7, (first[i]+1):n.occasions], # time dependent 3d array (index by i) [nstates, nstates, t]
+                                        len = n.occasions - first[i] + 1, # length of observations
+                                        checkRowSums = 0) 
+    
+    obs.mat[i,1:7, 1:2, first[i]] <- obs.mat.init[i, 1:7, 1:2]
+
+    for (t in (first[i]+1):n.occasions) {
+      # phi[i,t] related to individual age and year per previous model
+      phi[i,t] <- mean.phi[ageCat[i,t-1], t-1]
+      
+      p.recruit[i,t] <- mean.p.recruit[ageCat[i,t-1], t-1, t]
+      
+      p.in[i,t] <- mean.p.in
+      p.propensity[i,t] <- mean.p.propensity
+      
+      trans.mat[i,1,1,t] <- phi[i,t]*(1-p.recruit[i,t])
+      trans.mat[i,1,2,t] <- 0
+      trans.mat[i,1,3,t] <- phi[i,t]*p.recruit[i,t]*p.in[i,t]
+      trans.mat[i,1,4,t] <- phi[i,t]*p.recruit[i,t]*(1-p.in[i,t])
+      trans.mat[i,1,5,t] <- 0
+      trans.mat[i,1,6,t] <- 0
+      trans.mat[i,1,7,t] <- 1-phi[i,t]
+      
+      trans.mat[i,2,1,t] <- 0
+      trans.mat[i,2,2,t] <- phi[i,t]*(1-p.propensity[i,t])
+      trans.mat[i,2,3,t] <- 0
+      trans.mat[i,2,4,t] <- 0
+      trans.mat[i,2,5,t] <- phi[i,t]*p.propensity[i,t]*p.in[i,t]
+      trans.mat[i,2,6,t] <- phi[i,t]*p.propensity[i,t]*(1-p.in[i,t])
+      trans.mat[i,2,7,t] <- 1-phi[i,t]
+      
+      trans.mat[i,3,1,t] <- 0
+      trans.mat[i,3,2,t] <- phi[i,t]*(1-p.propensity[i,t])
+      trans.mat[i,3,3,t] <- 0
+      trans.mat[i,3,4,t] <- 0
+      trans.mat[i,3,5,t] <- phi[i,t]*p.propensity[i,t]*p.in[i,t]
+      trans.mat[i,3,6,t] <- phi[i,t]*p.propensity[i,t]*(1-p.in[i,t])
+      trans.mat[i,3,7,t] <- 1-phi[i,t]
+      
+      trans.mat[i,4,1,t] <- 0
+      trans.mat[i,4,2,t] <- phi[i,t]*(1-p.propensity[i,t])
+      trans.mat[i,4,3,t] <- 0
+      trans.mat[i,4,4,t] <- 0
+      trans.mat[i,4,5,t] <- phi[i,t]*p.propensity[i,t]*p.in[i,t]
+      trans.mat[i,4,6,t] <- phi[i,t]*p.propensity[i,t]*(1-p.in[i,t])
+      trans.mat[i,4,7,t] <- 1-phi[i,t]
+      
+      trans.mat[i,5,1,t] <- 0
+      trans.mat[i,5,2,t] <- phi[i,t]*(1-p.propensity[i,t])
+      trans.mat[i,5,3,t] <- 0
+      trans.mat[i,5,4,t] <- 0
+      trans.mat[i,5,5,t] <- phi[i,t]*p.propensity[i,t]*p.in[i,t]
+      trans.mat[i,5,6,t] <- phi[i,t]*p.propensity[i,t]*(1-p.in[i,t])
+      trans.mat[i,5,7,t] <- 1-phi[i,t]
+      
+      trans.mat[i,6,1,t] <- 0
+      trans.mat[i,6,2,t] <- phi[i,t]*(1-p.propensity[i,t])
+      trans.mat[i,6,3,t] <- 0
+      trans.mat[i,6,4,t] <- 0
+      trans.mat[i,6,5,t] <- phi[i,t]*p.propensity[i,t]*p.in[i,t]
+      trans.mat[i,6,6,t] <- phi[i,t]*p.propensity[i,t]*(1-p.in[i,t])
+      trans.mat[i,6,7,t] <- 1-phi[i,t]
+      
+      trans.mat[i,7,1,t] <- 0
+      trans.mat[i,7,2,t] <- 0
+      trans.mat[i,7,3,t] <- 0
+      trans.mat[i,7,4,t] <- 0
+      trans.mat[i,7,5,t] <- 0
+      trans.mat[i,7,6,t] <- 0
+      trans.mat[i,7,7,t] <- 1
+      
+      # alive at sea, never bred
+      obs.mat[i,1, 1,t] <- 1
+      obs.mat[i,1, 2,t] <- 0
+      
+      # alive at sea, has bred
+      obs.mat[i,2, 1,t] <- 1
+      obs.mat[i,2, 2,t] <- 0
+      
+      # recruit in colony
+      obs.mat[i,3, 1,t] <- 1-p.det[t]
+      obs.mat[i,3, 2,t] <- p.det[t]
+      
+      # recruit out of colony
+      obs.mat[i,4, 1,t] <- 1
+      obs.mat[i,4, 2,t] <- 0
+      
+      # breed in colony
+      obs.mat[i,5, 1,t] <- 1-p.det[t]
+      obs.mat[i,5, 2,t] <- p.det[t]
+      
+      # breed out of colony
+      obs.mat[i,6, 1,t] <- 1
+      obs.mat[i,6, 2,t] <- 0
+      
+      # dead
+      obs.mat[i,7, 1,t] <- 1
+      obs.mat[i,7, 2,t] <- 0
+    }
   }
-  
-  # Define the cell probabilities of the m-arrays
-  # Main diagonal
-  for (t in 1:(n.occasions-2)){
-    q.ad[t] <- 1-p.ad[t]            # Probability of non-recapture
-    
-    for(j in 1:(n.occasions-2)){
-      q.juv[t,j] <- 1 - p.juv[t,j]
-    }    
-    
-    pr.j[t,t] <- 0
-    pr.a[t,t] <- phi.ad[t]*p.ad[t]
-    
-    # Above main diagonal
-    for (j in (t+1):(n.occasions-1)){
-      pr.j[t,j] <- phi.juv[t]*prod(phi.ad[(t+1):j])*prod(q.juv[t,t:(j-1)])*p.juv[t,j]
-      pr.a[t,j] <- prod(phi.ad[t:j])*prod(q.ad[t:(j-1)])*p.ad[j]
-    } #j
-    
-    # Below main diagonal
-    for (j in 1:(t-1)){
-      pr.j[t,j] <- 0
-      pr.a[t,j] <- 0
-    } #j
-  } #t
-  
-  q.ad[n.occasions-1] <- 1-p.ad[n.occasions-1]   
-  for(j in 1:(n.occasions-1)){
-    q.juv[n.occasions-1,j] <- 1 - p.juv[n.occasions-1,j]
-  }   
-  
-  pr.j[n.occasions-1,n.occasions-1] <- 0
-  pr.a[n.occasions-1,n.occasions-1] <- phi.ad[n.occasions-1]*p.ad[n.occasions-1]
-  
-  # no above main diagonal
-  
-  for (j in 1:(n.occasions-2)){
-    pr.j[n.occasions-1,j] <- 0
-    pr.a[n.occasions-1,j] <- 0
-  } #j
-  
-  # Last column: probability of non-recapture
-  for (t in 1:(n.occasions-1)){
-    pr.j[t,n.occasions] <- 1-sum(pr.j[t,1:(n.occasions-1)])
-    pr.a[t,n.occasions] <- 1-sum(pr.a[t,1:(n.occasions-1)])
-  } #t
   
 })
 
 #### PARAMETERS TO MONITOR ####
+
 params <- c(
   # FECUNDITY
   "ann.fec",
@@ -330,6 +370,9 @@ params <- c(
   # SURVIVAL
   "mean.phi.juv", "mean.phi.ad", "sigma.phi", "eps.phi",
   "mu.p.juv", "mean.p.ad", "agebeta", "sigma.p", "eps.p",
+  "mean.p.in",
+  "mean.p.propensity",
+  "mean.p.det", "sigma.p.det",
   
   # ABUNDANCE
   "Ntot", "Ntot.breed", "N.atsea", "N.ad.surv",
@@ -338,7 +381,7 @@ params <- c(
 
 #### MCMC SETTINGS ####
 nb <- 0 #burn-in
-ni <- 20000#0 #total iterations
+ni <- 4000#00 #total iterations
 nt <- 1 # thin
 nc <- 3  #chains
 adaptInterval = 200
@@ -347,30 +390,41 @@ adaptInterval = 200
 #sliceWidth = 1
 
 #### COMPILE CONFIGURE AND BUILD ####
-Rmodel <- nimbleModel(code = code, constants = const, 
-                      data = dat, 
-                      inits = inits,
-                      check = TRUE, calculate = TRUE)
+
+t.start <- Sys.time()
+Rmodel <- nimbleModel(code = code, 
+                      constants = const_marginal, 
+                      data = dat_marginal, 
+                      inits = inits_marginal,
+                      check = FALSE, calculate = FALSE)
 conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
+                      useConjugacy = FALSE,
                       control = list(adaptInterval = adaptInterval#,
                                      #maxContractions = maxContractions, 
                                      #scale = scale, 
                                      #sliceWidth = sliceWidth
-                                     )) 
+                      )) 
 Rmcmc <- buildMCMC(conf)  
 Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
+t.end <- Sys.time()
+(runTime <- t.end - t.start)
 beep(sound = 1)
+
 
 #### RUN MCMC ####
 
 # with inits - does not mix
 
 t.start <- Sys.time()
-out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits,
+#sink("oops.txt")
+out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits_marginal,
                 setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE)
+#sink()
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
+
+save(out1, file = "samples_statespace_marginal.Rdata")
 
 rhat <- gelman.diag(out1, multivariate = FALSE)
 beep(sound = 1)
@@ -386,102 +440,26 @@ summ <- t(post_summ(out1, get_params(out1, type = "base_index"),
   rownames_to_column(var = "name")
 beep(sound = 1)
 
+out1_backhalf <- post_subset(out1, get_params(out1, type = "base_index"),
+                             matrix = TRUE, chains = TRUE, iters = TRUE) 
+out1_backhalf <- out1_backhalf[out1_backhalf[,2] > 1000, ] %>% 
+  post_convert()
+summ_backhalf <- t(post_summ(out1_backhalf, get_params(out1_backhalf, type = 'base_index'),
+                             neff = TRUE, Rhat = TRUE, probs = c(0.025, 0.5, 0.975))) %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "name")
+
+comparison <- full_join(summ %>% dplyr::select(name, mean, sd, Rhat, neff), 
+                        summ_backhalf %>% dplyr::select(name, mean, sd, Rhat, neff),
+                        by = "name"
+                        )
+
 IMsamps <- post_subset(out1, "IM", matrix = TRUE, chains = TRUE, iters = TRUE)
 Nbreedreadysamps <- post_subset(out1, "N.breed.ready", matrix = TRUE, chains = TRUE, iters = TRUE)
 Nrecruitssamps <- post_subset(out1, "N.recruits", matrix = TRUE, chains = TRUE, iters = TRUE)
-Nbreedreadysamps <- post_subset(out1, "N.breed.ready", matrix = TRUE, chains = TRUE, iters = TRUE)
 Ntotbreed <- post_subset(out1, "Ntot.breed", matrix = TRUE, chains = TRUE, iters = TRUE)
 mean.phi <- post_subset(out1, "mean.phi", matrix = TRUE, chains = TRUE, iters = TRUE)
 
-# without inits - slice sampler errors
-t.start <- Sys.time()
-out2 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc,
-                setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
-t.end <- Sys.time()
-(runTime <- t.end - t.start)
 
-### PARALLEL VERSION ####
 
-t.start <- Sys.time() # start clock for whole process
 
-cores=detectCores() # how many cores are available
-# this line is essential on mac, not sure about pc
-# does not impact performance though
-used.cores = min(nc, cores) # good practice to not max out all available cores. 
-# my general workflow is that in each instance of R I set up a script like this 
-# that runs 3 chains in parallel (1 chain per core)
-cl <- makeCluster(used.cores, setup_strategy = "sequential") # make cluster of cores
-registerDoParallel(cl) 
-
-foreach(i = 1:nc) %dopar% { # parallel version of for loop
-  # my understanding is that each core can access your environment but not workspace 
-  # i.e. you can reference data objects but you have to reload packages and functions
-  library(nimble)
-
-  #### COMPILE CONFIGURE AND BUILD ####
-  Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
-                        check = FALSE, calculate = FALSE)
-  conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
-                        control = list(maxContractions = maxContractions, 
-                                       adaptInterval = adaptInterval,
-                                       scale = scale, 
-                                       sliceWidth = sliceWidth)) 
-  Rmcmc <- buildMCMC(conf)  
-  Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
-  Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
-  
-  #### RUN MCMC ####
-  
-  out3 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = 1, inits = inits,
-                  setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
-  
-  saveRDS(out3, paste("out3.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
-  
-  
-} # closes parallel loop
-stopCluster(cl) # important to do this to stop running things in parallel
-
-t.end <- Sys.time() # end clock
-(runTime <- t.end - t.start) # how long did whole thing take in parallel
-
-t.start <- Sys.time() # start clock for whole process
-
-cores=detectCores() # how many cores are available
-# this line is essential on mac, not sure about pc
-# does not impact performance though
-used.cores = min(nc, cores) # good practice to not max out all available cores. 
-# my general workflow is that in each instance of R I set up a script like this 
-# that runs 3 chains in parallel (1 chain per core)
-cl <- makeCluster(used.cores, setup_strategy = "sequential") # make cluster of cores
-registerDoParallel(cl) 
-
-foreach(i = 1:nc) %dopar% { # parallel version of for loop
-  # my understanding is that each core can access your environment but not workspace 
-  # i.e. you can reference data objects but you have to reload packages and functions
-  library(nimble)
-  
-  #### COMPILE CONFIGURE AND BUILD ####
-  Rmodel <- nimbleModel(code = code, constants = const, data = dat, 
-                        check = FALSE, calculate = FALSE)
-  conf <- configureMCMC(Rmodel, monitors = params, thin = nt, 
-                        control = list(maxContractions = maxContractions, 
-                                       adaptInterval = adaptInterval,
-                                       scale = scale, 
-                                       sliceWidth = sliceWidth)) 
-  Rmcmc <- buildMCMC(conf)  
-  Cmodel <- compileNimble(Rmodel, showCompilerOutput = FALSE)
-  Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
-  
-  #### RUN MCMC ####
-  
-  out4 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = 1,
-                  setSeed = FALSE, progressBar = TRUE, samplesAsCodaMCMC = TRUE) 
-  
-  saveRDS(out4, paste("out4.parallel-",i,".RDS", sep = "")) # save each chain with a diff name
-  
-  
-} # closes parallel loop
-stopCluster(cl) # important to do this to stop running things in parallel
-
-t.end <- Sys.time() # end clock
-(runTime <- t.end - t.start) # how long did whole thing take in parallel
