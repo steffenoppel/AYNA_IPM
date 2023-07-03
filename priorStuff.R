@@ -83,10 +83,12 @@ sd(rbeta(10000, alpha, beta))
 mu.p.juv <- rnorm(10000, -3, sd = 0.25) 
 hist(plogis(mu.p.juv))
 
-agebeta <- rnorm(10000, 0.75, sd = 0.1) # Prior for shape of increase in juvenile recapture probability with age
+#agebeta <- rnorm(10000, 0.75, sd = 0.1) # Prior for shape of increase in juvenile recapture probability with age
+agebeta <- rnorm(10000, 6.284289e-01, sd = 0.05815942) # Prior for shape of increase in juvenile recapture probability with age
 hist(agebeta)
 
-sigma.p <- rexp(10000, 10)
+#sigma.p <- rexp(10000, 10)
+sigma.p <- 9.679902e-01
 hist(sigma.p)
 eps.p <- rnorm(10000, 0, sigma.p) 
 hist(eps.p)

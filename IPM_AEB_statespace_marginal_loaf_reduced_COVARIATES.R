@@ -152,16 +152,10 @@ rDHMMo_mod <- nimbleFunction(
   })
 
 #### LOAD DATA ####
-load("IPM_AEB_dat_stateSpace_marginal_loaf_reduced.RData") 
-# dat_marginal <- append(dat_marginal,
-#                        list(mult = mult))
+load("IPM_AEB_dat_stateSpace_marginal_loaf_reduced_COVARIATES.RData") 
 
 #### LOAD INITS #####
-load("IPM_AEB_inits_stateSpace_marginal_loaf_reduced.Rdata") 
-inits_marginal <- inits_marginal[-1]
-inits_marginal <- append(inits_marginal, 
-                         c(mean.fec = 0.4, 
-                           sigma.fec = 0.1))
+load("IPM_AEB_inits_stateSpace_marginal_loaf_reduced_COVARIATES.Rdata") 
 
 #### MODEL CODE ####
 code <- nimbleCode({
@@ -254,11 +248,27 @@ code <- nimbleCode({
   sigma.phi ~ dexp(10) # AEB changed, don't want this huge
   
   ## RANDOM TIME EFFECT ON SURVIVAL
+  sigma.beta1 ~ dexp(1)
+  sigma.beta2 ~ dexp(1)
+  sigma.beta3 ~ dexp(1)
+  sigma.beta4 ~ dexp(1)
+  sigma.beta5 ~ dexp(1)
+  
+  beta.ICCAT.ll.e[1] ~ dnorm(0, sd = sigma.beta1)  
+  beta.ICCAT.ll.mit[1] ~ dnorm(0, sd = sigma.beta2) 
+  beta.Nam.ll.mit[1] ~ dnorm(0, sd = sigma.beta3) 
+  beta.SA.ll.mit[1] ~ dnorm(0, sd = sigma.beta4) 
+  beta.Uru.ll.mit[1] ~ dnorm(0, sd = sigma.beta5)
+  beta.ICCAT.ll.e[2] ~ dnorm(0, sd = sigma.beta1)  
+  beta.ICCAT.ll.mit[2] ~ dnorm(0, sd = sigma.beta2) 
+  beta.Nam.ll.mit[2] ~ dnorm(0, sd = sigma.beta3) 
+  beta.SA.ll.mit[2] ~ dnorm(0, sd = sigma.beta4) 
+  beta.Uru.ll.mit[2] ~ dnorm(0, sd = sigma.beta5) 
+  
   for (j in 1:(n.occasions-1)){
-    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] # does this even matter?
-    # there is already a lot of variability in phi.juv, don't think eps.phi matters as much for this age class
-    # more important for adults
-    logit(phi.ad[j]) <- mu.ad + eps.phi[j] 
+    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e[1]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[1]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[1]*Nam.ll.mit[j] + beta.SA.ll.mit[1]*SA.ll.mit[j] + beta.Uru.ll.mit[1]*Uru.ll.mit[j]
+    logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e[2]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[2]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[2]*Nam.ll.mit[j] + beta.SA.ll.mit[2]*SA.ll.mit[j] + beta.Uru.ll.mit[2]*Uru.ll.mit[j]
+    
     eps.phi[j] ~ dnorm(0, sd = sigma.phi) 
     
     mean.phi[1, j] <- phi.juv[j]
@@ -412,11 +422,11 @@ code <- nimbleCode({
     # Y[i, t] ~ dcat(obs.mat[t, Z[i, t], 1:2])
     
     Y[i, first[i]:n.occasions] ~ dDHMMo_mod(init = init[i, 1:10], # initial state probabilities, provide this as data (1s and 0s, assuming first state known)
-                                        probObs = obs.mat[i, 1:10, 1:2, first[i]:n.occasions], # time dependent 3d array (index by i) [nstates, nevents, t]; assume known at first and provide as data
-                                        probTrans = trans.mat[i, 1:10, 1:10, (first[i]+1):n.occasions], # time dependent 3d array (index by i) [nstates, nstates, t]
-                                        mult = mult[i],
-                                        len = n.occasions - first[i] + 1, # length of observations
-                                        checkRowSums = 0) 
+                                            probObs = obs.mat[i, 1:10, 1:2, first[i]:n.occasions], # time dependent 3d array (index by i) [nstates, nevents, t]; assume known at first and provide as data
+                                            probTrans = trans.mat[i, 1:10, 1:10, (first[i]+1):n.occasions], # time dependent 3d array (index by i) [nstates, nstates, t]
+                                            mult = mult[i],
+                                            len = n.occasions - first[i] + 1, # length of observations
+                                            checkRowSums = 0) 
     
     obs.mat[i,1:10, 1:2, first[i]] <- obs.mat.init[i, 1:10, 1:2]
     
@@ -632,14 +642,26 @@ params <- c(
   "N.loaf",
   "nestlings", 
   "JUV", 
-  "Ntot"
+  "Ntot",
+  
+  "sigma.beta1",
+  "sigma.beta2",
+  "sigma.beta3",
+  "sigma.beta4",
+  "sigma.beta5",
+  
+  "beta.ICCAT.ll.e",
+  "beta.ICCAT.ll.mit",
+  "beta.Nam.ll.mit",
+  "beta.SA.ll.mit",
+  "beta.Uru.ll.mit"
 )
 
 #### MCMC SETTINGS ####
 nb <- 0 #burn-in
-ni <- 4000#0 #total iterations
+ni <- 100000 #total iterations
 nt <- 1 # thin
-nc <- 3  #chains
+nc <- 1  #chains
 adaptInterval = 200
 #maxContractions = 1000
 #scale = 1
@@ -680,7 +702,7 @@ out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits_m
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
-save(out1, file = "samples_statespace_marginal_loaf_reduced.Rdata")
+save(out1, file = "samples_statespace_marginal_loaf_reduced_COVARIATES.Rdata")
 
 summ <- t(post_summ(out1, get_params(out1, type = "base_index"), 
                     neff = TRUE, Rhat = TRUE, probs = c(0.025, 0.5, 0.975))) %>% 
