@@ -153,9 +153,6 @@ rDHMMo_mod <- nimbleFunction(
 
 #### LOAD DATA ####
 load("IPM_AEB_dat_stateSpace_marginal_loaf_reduced_COVARIATES.RData") 
-names(dat_marginal)
-names(dat_marginal)[7:11] <- c("ICCAT.ll.e", "ICCAT.ll.mit", "Nam.ll.mit", "SA.ll.mit", "Uru.ll.mit")
-names(dat_marginal)
 
 #### LOAD INITS #####
 load("IPM_AEB_inits_stateSpace_marginal_loaf_reduced_COVARIATES.Rdata") 
