@@ -192,8 +192,9 @@ code <- nimbleCode({
   # 1.3. Priors and constraints FOR SURVIVAL
   # -------------------------------------------------
   
-  mean.p.fidelity[1] ~ dbeta(35/2,10/2) # immature fidelity
-  mean.p.fidelity[2] ~ dbeta(60,4) # adult fidelity
+  # mean.p.fidelity[1] ~ dbeta(35/2,10/2) # immature fidelity
+  # mean.p.fidelity[2] ~ dbeta(60,4) # adult fidelity
+  mean.p.fidelity ~ dbeta(60,4) # adult fidelity
   
   mean.p.propensity ~ dbeta(15,2) # adult breeding prob, if on land
   
@@ -228,7 +229,7 @@ code <- nimbleCode({
       p.juv[t,j] <- 0
     }
     for (j in (t+1):(n.occasions)){
-      logit(p.juv[t,j])  <- mu.p.juv + agebeta*max(0, j - t - 5) #+ eps.p[j-1]
+      logit(p.juv[t,j])  <- mu.p.juv + agebeta*(j - t) #+ eps.p[j-1]
       
       #mean.p.recruit[t, j] <- p.juv[t, j]
       #mean.p.recruit[2, t, j] <- p.ad[t]
@@ -288,7 +289,7 @@ code <- nimbleCode({
   
   ### RECRUIT PROBABILITY ###
   for (age in 1:maxAge) {
-    logit(p.juv.recruit.f[age]) <- mu.p.juv + agebeta*max(0, age - 5)
+    logit(p.juv.recruit.f[age]) <- mu.p.juv + agebeta*(age)
   }
   
   #IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
@@ -358,7 +359,7 @@ code <- nimbleCode({
   
   for (tt in 2:n.years.fec){
     for (age in 1:maxAge) {
-      logit(p.juv.recruit[age,tt]) <- mu.p.juv + agebeta*max(0, age - 5) # + eps.p[tt+offset-1]
+      logit(p.juv.recruit[age,tt]) <- mu.p.juv + agebeta*(age) # + eps.p[tt+offset-1]
     }
     
     ## IMMATURE MATRIX WITH 3 columns:
@@ -453,8 +454,8 @@ code <- nimbleCode({
       trans.mat[i,1,3,t] <- 0
       trans.mat[i,1,4,t] <- 0
       trans.mat[i,1,5,t] <- 0
-      trans.mat[i,1,6,t] <- phi[i,t]*(p.recruit[i,t])*(mean.p.fidelity[1])
-      trans.mat[i,1,7,t] <- phi[i,t]*(p.recruit[i,t])*(1-mean.p.fidelity[1])
+      trans.mat[i,1,6,t] <- phi[i,t]*(p.recruit[i,t])*(mean.p.fidelity)
+      trans.mat[i,1,7,t] <- phi[i,t]*(p.recruit[i,t])*(1-mean.p.fidelity)
       trans.mat[i,1,8,t] <- 0
       trans.mat[i,1,9,t] <- 0
       trans.mat[i,1,10,t] <- 1-phi[i,t]
@@ -463,96 +464,96 @@ code <- nimbleCode({
       trans.mat[i,2,1,t] <- 0 
       trans.mat[i,2,2,t] <- phi[i,t]*p.atsea[i,t]
       trans.mat[i,2,3,t] <- 0
-      trans.mat[i,2,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,2,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,2,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,2,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,2,6,t] <- 0
       trans.mat[i,2,7,t] <- 0
-      trans.mat[i,2,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,2,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,2,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,2,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,2,10,t] <- 1-phi[i,t]
       
       # 3. ALIVE AT SEA - LAST BRED OUT OF COLONY
       trans.mat[i,3,1,t] <- 0 
       trans.mat[i,3,2,t] <- 0
       trans.mat[i,3,3,t] <- phi[i,t]*p.atsea[i,t]
-      trans.mat[i,3,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,3,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,3,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,3,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,3,6,t] <- 0
       trans.mat[i,3,7,t] <- 0
-      trans.mat[i,3,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,3,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,3,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,3,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,3,10,t] <- 1-phi[i,t]
       
       # 4. LOAF IN - HAS BRED
       trans.mat[i,4,1,t] <- 0 
       trans.mat[i,4,2,t] <- phi[i,t]*p.atsea[i,t]
       trans.mat[i,4,3,t] <- 0
-      trans.mat[i,4,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,4,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,4,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,4,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,4,6,t] <- 0
       trans.mat[i,4,7,t] <- 0
-      trans.mat[i,4,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,4,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,4,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,4,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,4,10,t] <- 1-phi[i,t]
       
       # 5. LOAF OUT - HAS BRED
       trans.mat[i,5,1,t] <- 0 
       trans.mat[i,5,2,t] <- 0
       trans.mat[i,5,3,t] <- phi[i,t]*p.atsea[i,t]
-      trans.mat[i,5,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,5,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,5,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,5,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,5,6,t] <- 0
       trans.mat[i,5,7,t] <- 0
-      trans.mat[i,5,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,5,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,5,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,5,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,5,10,t] <- 1-phi[i,t]
       
       # 6. RECRUIT IN
       trans.mat[i,6,1,t] <- 0 
       trans.mat[i,6,2,t] <- phi[i,t]*p.atsea[i,t]
       trans.mat[i,6,3,t] <- 0
-      trans.mat[i,6,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,6,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,6,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,6,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,6,6,t] <- 0
       trans.mat[i,6,7,t] <- 0
-      trans.mat[i,6,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,6,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,6,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,6,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,6,10,t] <- 1-phi[i,t]
       
       # 7. RECRUIT OUT
       trans.mat[i,7,1,t] <- 0 
       trans.mat[i,7,2,t] <- 0
       trans.mat[i,7,3,t] <- phi[i,t]*p.atsea[i,t]
-      trans.mat[i,7,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,7,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,7,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,7,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,7,6,t] <- 0
       trans.mat[i,7,7,t] <- 0
-      trans.mat[i,7,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,7,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,7,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,7,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,7,10,t] <- 1-phi[i,t]
       
       # 8. BREED IN
       trans.mat[i,8,1,t] <- 0 
       trans.mat[i,8,2,t] <- phi[i,t]*p.atsea[i,t]
       trans.mat[i,8,3,t] <- 0
-      trans.mat[i,8,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,8,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,8,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,8,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,8,6,t] <- 0
       trans.mat[i,8,7,t] <- 0
-      trans.mat[i,8,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
-      trans.mat[i,8,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
+      trans.mat[i,8,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
+      trans.mat[i,8,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
       trans.mat[i,8,10,t] <- 1-phi[i,t]
       
       # 9. BREED OUT
       trans.mat[i,9,1,t] <- 0 
       trans.mat[i,9,2,t] <- 0
       trans.mat[i,9,3,t] <- phi[i,t]*p.atsea[i,t]
-      trans.mat[i,9,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,9,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,9,4,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,9,5,t] <- phi[i,t]*(1-p.atsea[i,t])*(1-p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,9,6,t] <- 0
       trans.mat[i,9,7,t] <- 0
-      trans.mat[i,9,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity[2])
-      trans.mat[i,9,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity[2])
+      trans.mat[i,9,8,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(1-mean.p.fidelity)
+      trans.mat[i,9,9,t] <- phi[i,t]*(1-p.atsea[i,t])*(p.propensity[i,t])*(mean.p.fidelity)
       trans.mat[i,9,10,t] <- 1-phi[i,t]
       
       # 10. DEAD
@@ -707,18 +708,3 @@ t.end <- Sys.time()
 
 save(out1, file = "samples_statespace_marginal_loaf_reduced_COVARIATES_chain1.Rdata")
 
-summ <- t(post_summ(out1, get_params(out1, type = "base_index"), 
-                    neff = TRUE, Rhat = TRUE, probs = c(0.025, 0.5, 0.975))) %>% 
-  as.data.frame() %>% 
-  rownames_to_column(var = "name")
-beep(sound = 1)
-
-out1_backhalf <- post_subset(out1, get_params(out1, type = "base_index"),
-                             matrix = TRUE, chains = TRUE, iters = TRUE) 
-out1_backhalf <- out1_backhalf[out1_backhalf[,2] > 100, ] %>% 
-  post_convert()
-summ_backhalf <- t(post_summ(out1_backhalf, get_params(out1_backhalf, type = 'base_index'),
-                             neff = TRUE, Rhat = TRUE, probs = c(0.025, 0.5, 0.975))) %>% 
-  as.data.frame() %>% 
-  rownames_to_column(var = "name")
-beep(sound = 1)

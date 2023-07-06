@@ -570,7 +570,8 @@ test <- cbind(summ_backhalf[,1], test[,1:2,1], test[,1:2,2], test[,1:2,3]) %>%
 comparison <- full_join(summ %>% dplyr::select(name, mean, sd, Rhat, neff), 
                         summ_backhalf %>% dplyr::select(name, mean, sd, Rhat, neff),
                         by = "name"
-)
+) %>% 
+  arrange(desc(mean.x - mean.y))
 
 IMsamps <- post_subset(out1, "IM", matrix = TRUE, chains = TRUE, iters = TRUE)
 Nbreedreadysamps <- post_subset(out1, "N.breed.ready", matrix = TRUE, chains = TRUE, iters = TRUE)
