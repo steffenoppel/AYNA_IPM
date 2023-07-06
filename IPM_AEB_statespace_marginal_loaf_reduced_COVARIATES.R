@@ -1,8 +1,8 @@
 #### LOAD LIBRARIES ####
 library(nimble)
-library(jagsUI)
+#library(jagsUI)
 library(coda)
-library(doParallel) 
+#library(doParallel) 
 library(tidyverse)
 library(tidybayes)
 library(strex)
@@ -153,6 +153,9 @@ rDHMMo_mod <- nimbleFunction(
 
 #### LOAD DATA ####
 load("IPM_AEB_dat_stateSpace_marginal_loaf_reduced_COVARIATES.RData") 
+names(dat_marginal)
+names(dat_marginal)[7:11] <- c("ICCAT.ll.e", "ICCAT.ll.mit", "Nam.ll.mit", "SA.ll.mit", "Uru.ll.mit")
+names(dat_marginal)
 
 #### LOAD INITS #####
 load("IPM_AEB_inits_stateSpace_marginal_loaf_reduced_COVARIATES.Rdata") 
@@ -702,7 +705,7 @@ out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits_m
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
-save(out1, file = "samples_statespace_marginal_loaf_reduced_COVARIATES.Rdata")
+save(out1, file = "samples_statespace_marginal_loaf_reduced_COVARIATES_chain1.Rdata")
 
 summ <- t(post_summ(out1, get_params(out1, type = "base_index"), 
                     neff = TRUE, Rhat = TRUE, probs = c(0.025, 0.5, 0.975))) %>% 
