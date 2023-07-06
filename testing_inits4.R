@@ -5,7 +5,8 @@ n.years.fec <- const$n.years.fec
 
 #### INITIAL VALUES ####
 iann.fec <- rep(0.5, n.years.fec)
-imean.p.fidelity <- c(0.9, 0.9)
+#imean.p.fidelity <- c(0.9, 0.9)
+imean.p.fidelity <- 0.9
 imean.p.propensity <- 0.7
 imean.p.atsea <- 0.05
 imean.p.det <- 2.5
@@ -33,34 +34,34 @@ IMinits[1,1,2] <- 0
 IMinits[1,1,3] <- round(IMinits[1,1,1]) - IMinits[1,1,2]
 
 IMinits[1,2,1] = max(c(rnorm(1, 275*0.5, 20)), 1)%>% round()
-IMinits[1,2,2] <- rbinom(1, IMinits[1, 2, 1], plogis(imu.p.juv + iagebeta*max(0,2-5)))
+IMinits[1,2,2] <- rbinom(1, IMinits[1, 2, 1], plogis(imu.p.juv + iagebeta*2))
 IMinits[1,2,3] <- round(IMinits[1,2,1]) - IMinits[1,2,2]
 
 IMinits[1,3,1] = max(c(rnorm(1, 264*0.5, 20)), 1)%>% round()
-IMinits[1,3,2] <- rbinom(1, IMinits[1, 3, 1], plogis(imu.p.juv + iagebeta*max(0,3-5)))
+IMinits[1,3,2] <- rbinom(1, IMinits[1, 3, 1], plogis(imu.p.juv + iagebeta*3))
 IMinits[1,3,3] <- round(IMinits[1,3,1]) - IMinits[1,3,2]
 
 IMinits[1,4,1] = max(c(rnorm(1, 177*0.5, 20)), 1)%>% round()
-IMinits[1,4,2] <- rbinom(1, IMinits[1, 4, 1], plogis(imu.p.juv + iagebeta*max(0,4-5)))
+IMinits[1,4,2] <- rbinom(1, IMinits[1, 4, 1], plogis(imu.p.juv + iagebeta*4))
 IMinits[1,4,3] <- round(IMinits[1,4,1]) - IMinits[1,4,2]
 
 IMinits[1,5,1] = max(c(rnorm(1, 290*0.5, 20)), 1)%>% round()
-IMinits[1,5,2] <- rbinom(1, IMinits[1, 5, 1], plogis(imu.p.juv + iagebeta*max(0,5-5)))
+IMinits[1,5,2] <- rbinom(1, IMinits[1, 5, 1], plogis(imu.p.juv + iagebeta*5))
 IMinits[1,5,3] <- round(IMinits[1,5,1]) - IMinits[1,5,2]
 
 IMinits[1,6,1] = max(c(rnorm(1, 90*0.5, 20)), 1)%>% round()
-IMinits[1,6,2] <- rbinom(1, IMinits[1, 6, 1], plogis(imu.p.juv + iagebeta*max(0,6-55)))
+IMinits[1,6,2] <- rbinom(1, IMinits[1, 6, 1], plogis(imu.p.juv + iagebeta*6))
 IMinits[1,6,3] <- round(IMinits[1,6,1]) - IMinits[1,6,2]
 
 IMinits[1,7,1] = max(c(rnorm(1, 158*0.5, 20)), 1)%>% round()
-IMinits[1,7,2] <- rbinom(1, IMinits[1, 7, 1], plogis(imu.p.juv + iagebeta*max(0,7-5)))
+IMinits[1,7,2] <- rbinom(1, IMinits[1, 7, 1], plogis(imu.p.juv + iagebeta*7))
 IMinits[1,7,3] <- round(IMinits[1,7,1]) - IMinits[1,7,2]
 
 for (age in 8:maxage) {
   #IMinits[1, age, 1] = rbinom(1, IMinits[1, age-1, 3], pow(0.9,(age-1)))
   # AEB change
   IMinits[1, age, 1] = rbinom(1, IMinits[1, age-1, 3], imean.phi.ad)
-  IMinits[1, age, 2] <- rbinom(1, IMinits[1, age, 1], plogis(imu.p.juv + iagebeta*max(0,age-5)))
+  IMinits[1, age, 2] <- rbinom(1, IMinits[1, age, 1], plogis(imu.p.juv + iagebeta*age))
   # print(paste(age, IMinits[1,age,1] - IMinits[1,age,2], sep = " "))
   IMinits[1, age, 3] <- IMinits[1,age,1] - IMinits[1,age,2]
 }
@@ -87,7 +88,7 @@ for (tt in 2:n.years.fec) {
   for (age in 2:maxage) {
     IMinits[tt, age, 1] <- rbinom(1, IMinits[tt-1, age-1, 3], imean.phi.ad)
     #IMinits[tt, age, 2] <- min(IMinits[tt, age, 1], IMinits[tt, age-1, 3]) * p.juv.recruit.inits[age, tt] %>% round()
-    IMinits[tt, age, 2] <- rbinom(1, IMinits[tt, age, 1], plogis(imu.p.juv + iagebeta*max(0,age-5)))
+    IMinits[tt, age, 2] <- rbinom(1, IMinits[tt, age, 1], plogis(imu.p.juv + iagebeta*age))
     IMinits[tt, age, 3] <- IMinits[tt,age,1] - IMinits[tt,age,2]
   }
   
@@ -227,11 +228,11 @@ dat_marginal <- list(
   y.count = rowSums(dat$y.count), 
   J = dat$J, 
   R = dat$R,
-  beta.ICCAT.ll.e = longline$n_hooks,
-  beta.ICCAT.ll.mit = longline$mit.ICCAT,
-  beta.Nam.ll.mit = longline$mit.NAM,
-  beta.SA.ll.mit = longline$mit.RSA,
-  beta.Uru.ll.mit = longline$mit.URU
+  ICCAT.ll.e = longline$n_hooks,
+  ICCAT.ll.mit = longline$mit.ICCAT,
+  Nam.ll.mit = longline$mit.NAM,
+  SA.ll.mit = longline$mit.RSA,
+  Uru.ll.mit = longline$mit.URU
 ) 
 
 # const ####
