@@ -153,9 +153,22 @@ rDHMMo_mod <- nimbleFunction(
 
 #### LOAD DATA ####
 load("IPM_AEB_dat_stateSpace_marginal_loaf_reduced_COVARIATES.RData") 
+dat_marginal <- dat_marginal[-c(7)]
+dat_marginal <- append(dat_marginal, 
+                       list(ones = 1))
 
 #### LOAD INITS #####
 load("IPM_AEB_inits_stateSpace_marginal_loaf_reduced_COVARIATES.Rdata") 
+inits_marginal <- inits_marginal[-c(20:29)]
+inits_marginal <- append(inits_marginal, 
+                         list(w1 = 0.25, 
+                              w2 = 0.25, 
+                              w3 = 0.25, 
+                              w4 = 0.25,
+                              sigma.beta1 = 0.1,
+                              beta.mit = c(0,0)
+                              )
+                         )
 
 #### MODEL CODE ####
 code <- nimbleCode({
@@ -249,26 +262,40 @@ code <- nimbleCode({
   sigma.phi ~ dexp(10) # AEB changed, don't want this huge
   
   ## RANDOM TIME EFFECT ON SURVIVAL
-  sigma.beta1 ~ dexp(1)
-  sigma.beta2 ~ dexp(1)
-  sigma.beta3 ~ dexp(1)
-  sigma.beta4 ~ dexp(1)
-  sigma.beta5 ~ dexp(1)
   
-  beta.ICCAT.ll.e[1] ~ dnorm(0, sd = sigma.beta1)  
-  beta.ICCAT.ll.mit[1] ~ dnorm(0, sd = sigma.beta2) 
-  beta.Nam.ll.mit[1] ~ dnorm(0, sd = sigma.beta3) 
-  beta.SA.ll.mit[1] ~ dnorm(0, sd = sigma.beta4) 
-  beta.Uru.ll.mit[1] ~ dnorm(0, sd = sigma.beta5)
-  beta.ICCAT.ll.e[2] ~ dnorm(0, sd = sigma.beta1)  
-  beta.ICCAT.ll.mit[2] ~ dnorm(0, sd = sigma.beta2) 
-  beta.Nam.ll.mit[2] ~ dnorm(0, sd = sigma.beta3) 
-  beta.SA.ll.mit[2] ~ dnorm(0, sd = sigma.beta4) 
-  beta.Uru.ll.mit[2] ~ dnorm(0, sd = sigma.beta5) 
+  w1 ~ dbeta(1,1)
+  w2 ~ dbeta(1,1)
+  w3 ~ dbeta(1,1)
+  w4 ~ dbeta(1,1)
+  ones ~ dconstraint(w1 + w2 + w3 + w4 == 1)
+  
+  sigma.beta1 ~ dexp(10)
+  # sigma.beta2 ~ dexp(1)
+  # sigma.beta3 ~ dexp(1)
+  # sigma.beta4 ~ dexp(1)
+  # sigma.beta5 ~ dexp(1)
+  
+  # beta.ICCAT.ll.e[1] ~ dnorm(0, sd = sigma.beta1)  
+  # beta.ICCAT.ll.mit[1] ~ dnorm(0, sd = sigma.beta2) 
+  # beta.Nam.ll.mit[1] ~ dnorm(0, sd = sigma.beta3) 
+  # beta.SA.ll.mit[1] ~ dnorm(0, sd = sigma.beta4) 
+  # beta.Uru.ll.mit[1] ~ dnorm(0, sd = sigma.beta5)
+  # #beta.ICCAT.ll.e[2] ~ dnorm(0, sd = sigma.beta1)  
+  # beta.ICCAT.ll.mit[2] ~ dnorm(0, sd = sigma.beta2) 
+  # beta.Nam.ll.mit[2] ~ dnorm(0, sd = sigma.beta3) 
+  # beta.SA.ll.mit[2] ~ dnorm(0, sd = sigma.beta4) 
+  # beta.Uru.ll.mit[2] ~ dnorm(0, sd = sigma.beta5) 
+  beta.mit[1] ~ dnorm(0, sd = sigma.beta1)
+  beta.mit[2] ~ dnorm(0, sd = sigma.beta1)
   
   for (j in 1:(n.occasions-1)){
-    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e[1]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[1]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[1]*Nam.ll.mit[j] + beta.SA.ll.mit[1]*SA.ll.mit[j] + beta.Uru.ll.mit[1]*Uru.ll.mit[j]
-    logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e[2]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[2]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[2]*Nam.ll.mit[j] + beta.SA.ll.mit[2]*SA.ll.mit[j] + beta.Uru.ll.mit[2]*Uru.ll.mit[j]
+    # logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e[1]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[1]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[1]*Nam.ll.mit[j] + beta.SA.ll.mit[1]*SA.ll.mit[j] + beta.Uru.ll.mit[1]*Uru.ll.mit[j]
+    # logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e[2]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[2]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[2]*Nam.ll.mit[j] + beta.SA.ll.mit[2]*SA.ll.mit[j] + beta.Uru.ll.mit[2]*Uru.ll.mit[j]
+    
+    mit.index[j] <- w1*ICCAT.ll.mit[j] + w2*Nam.ll.mit[j] + w3*SA.ll.mit[j] + w4*Uru.ll.mit[j]
+    
+    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.mit[1]*mit.index[j]
+    logit(phi.ad[j])  <- mu.ad  + eps.phi[j]             + beta.mit[2]*mit.index[j]
     
     eps.phi[j] ~ dnorm(0, sd = sigma.phi) 
     
@@ -290,43 +317,43 @@ code <- nimbleCode({
   }
   
   #IM[1,1,1] ~ T(dnorm(263/2,sd = 20), 0, Inf)
-  IM[1,1,1] ~ dpois(263/2)
+  IM[1,1,1] ~ dpois(263/2*0.9)
   IM[1,1,2] <- 0
   #IM[1,1,3] <- round(IM[1,1,1]) - IM[1,1,2]
   IM[1,1,3] <- IM[1,1,1] - IM[1,1,2]
   
   #IM[1,2,1] ~ T(dnorm(275/2,sd = 20), 0, Inf)
-  IM[1,2,1] ~ dpois(275/2)
+  IM[1,2,1] ~ dpois(275/2*0.9)
   IM[1,2,2] ~ dbin(p.juv.recruit.f[2], round(IM[1,2,1]))
   #IM[1,2,3] <- round(IM[1,2,1]) - IM[1,2,2]
   IM[1,2,3] <- IM[1,2,1] - IM[1,2,2]
   
   #IM[1,3,1] ~ T(dnorm(264/2,sd = 20), 0, Inf)
-  IM[1,3,1] ~ dpois(264/2)
+  IM[1,3,1] ~ dpois(264/2*0.9)
   IM[1,3,2] ~ dbin(p.juv.recruit.f[3], round(IM[1,3,1]))
   #IM[1,3,3] <- round(IM[1,3,1]) - IM[1,3,2]
   IM[1,3,3] <- IM[1,3,1] - IM[1,3,2]
   
   #IM[1,4,1] ~ T(dnorm(177/2,sd = 20), 0, Inf) 
-  IM[1,4,1] ~ dpois(177/2)
+  IM[1,4,1] ~ dpois(177/2*0.9)
   IM[1,4,2] ~ dbin(p.juv.recruit.f[4], round(IM[1,4,1]))
   #IM[1,4,3] <- round(IM[1,4,1]) - IM[1,4,2]
   IM[1,4,3] <- IM[1,4,1] - IM[1,4,2]
   
   #IM[1,5,1] ~ T(dnorm(290/2,sd = 20), 0, Inf)
-  IM[1,5,1] ~ dpois(290/2)
+  IM[1,5,1] ~ dpois(290/2*0.9)
   IM[1,5,2] ~ dbin(p.juv.recruit.f[5], round(IM[1,5,1]))
   #IM[1,5,3] <- round(IM[1,5,1]) - IM[1,5,2]
   IM[1,5,3] <- IM[1,5,1] - IM[1,5,2]
   
   #IM[1,6,1] ~ T(dnorm(90/2,sd = 20), 0, Inf) 
-  IM[1,6,1] ~ dpois(90/2)
+  IM[1,6,1] ~ dpois(90/2*0.9)
   IM[1,6,2] ~ dbin(p.juv.recruit.f[6], round(IM[1,6,1]))
   #IM[1,6,3] <- round(IM[1,6,1]) - IM[1,6,2]
   IM[1,6,3] <- IM[1,6,1] - IM[1,6,2]
   
   #IM[1,7,1] ~ T(dnorm(158/2,sd = 20), 0, Inf)
-  IM[1,7,1] ~ dpois(158/2)
+  IM[1,7,1] ~ dpois(158/2*0.9)
   IM[1,7,2] ~ dbin(p.juv.recruit.f[7], round(IM[1,7,1]))
   #IM[1,7,3] <- round(IM[1,7,1]) - IM[1,7,2]
   IM[1,7,3] <- IM[1,7,1] - IM[1,7,2]
@@ -341,13 +368,13 @@ code <- nimbleCode({
   N.ad.surv[1] <- 0
   N.breed.ready[1] <- 0
   #Ntot.breed[1] ~ T(dnorm(640/2,sd = 20), 0, Inf)  
-  Ntot.breed[1] ~ dpois(640/2)  
+  Ntot.breed[1] ~ dpois(640/2*0.9)  
   #N.atsea[1] ~ T(dnorm(224/2,sd = 20), 0, Inf)    
-  N.atsea[1] ~ dpois(32/2) # 640*0.05/2
-  N.loaf[1] ~ dpois(120/2) # taken from count of loafers in 2010
+  N.atsea[1] ~ dpois(40/2*0.9) # 640*0.05/2, with a little wiggle
+  N.loaf[1] ~ dpois(120/2*0.9) # taken from count of loafers in 2010
   nestlings[1] <- 0
   #JUV[1] ~ T(dnorm(232/2, sd = 20), 0, Inf)         
-  JUV[1] ~ dpois(232/2)
+  JUV[1] ~ dpois(232/2*0.9)
   
   #Ntot[1]<-sum(IM[1,1:maxAge,3]) + round(Ntot.breed[1])+round(N.atsea[1]) 
   Ntot[1]<-sum(IM[1,1:maxAge,3]) + Ntot.breed[1] + N.atsea[1] + N.loaf[1]
@@ -646,16 +673,18 @@ params <- c(
   "Ntot",
   
   "sigma.beta1",
-  "sigma.beta2",
-  "sigma.beta3",
-  "sigma.beta4",
-  "sigma.beta5",
+  #"sigma.beta2",
+  #"sigma.beta3",
+  #"sigma.beta4",
+  #"sigma.beta5",
   
-  "beta.ICCAT.ll.e",
-  "beta.ICCAT.ll.mit",
-  "beta.Nam.ll.mit",
-  "beta.SA.ll.mit",
-  "beta.Uru.ll.mit"
+  "w1", "w2", "w3", "w4",
+  "beta.mit"
+  # "beta.ICCAT.ll.e",
+  # "beta.ICCAT.ll.mit",
+  # "beta.Nam.ll.mit",
+  # "beta.SA.ll.mit",
+  # "beta.Uru.ll.mit"
 )
 
 #### MCMC SETTINGS ####
