@@ -247,7 +247,7 @@ code <- nimbleCode({
   inflation.factor ~ dbeta(3, 50)
   
   mu.juv <- log(mean.phi.juv / (1-mean.phi.juv)) # Logit transformation
-  mu.imm <- log(mean.phi.im) / (1-mean.phi.im)
+  mu.imm <- log(mean.phi.im) / (1-mean.phi.im))
   mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
   
   sigma.phi ~ dexp(10) # AEB changed, don't want this huge
@@ -475,7 +475,7 @@ code <- nimbleCode({
       
       # 2. ALIVE AT SEA - LAST BRED IN COLONY
       trans.mat[i,2,1,t] <- 0 
-      trans.mat[i,2,2,t] <- mean.phi[3,t]*p.atsea[i,t]
+      trans.mat[i,2,2,t] <- mean.phi[3,t-1]*p.atsea[i,t]
       trans.mat[i,2,3,t] <- mean.phi[3,t-1]*(1-p.atsea[i,t])*(1-p.propensity[i,t])
       trans.mat[i,2,4,t] <- 0
       trans.mat[i,2,5,t] <- mean.phi[3,t-1]*(1-p.atsea[i,t])*(p.propensity[i,t])
@@ -562,7 +562,7 @@ params <- c(
   "mean.phi.juv", 
   "mean.phi.im",
   "mean.phi.ad", 
-  "inflaction.factor",
+  "inflation.factor",
   "sigma.phi", 
   "eps.phi",
   
