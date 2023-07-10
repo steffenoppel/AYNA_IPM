@@ -247,7 +247,7 @@ code <- nimbleCode({
   inflation.factor ~ dbeta(3, 50)
   
   mu.juv <- log(mean.phi.juv / (1-mean.phi.juv)) # Logit transformation
-  mu.imm <- log(mean.phi.im) / (1-mean.phi.im))
+  mu.im <- log(mean.phi.im / (1-mean.phi.im))
   mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
   
   sigma.phi ~ dexp(10) # AEB changed, don't want this huge
