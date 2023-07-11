@@ -161,10 +161,8 @@ dat_marginal <- append(dat_marginal,
 load("IPM_AEB_inits_stateSpace_marginal_loaf_reduced_COVARIATES.Rdata") 
 inits_marginal <- inits_marginal[-c(20:29)]
 inits_marginal <- append(inits_marginal, 
-                         list(w1 = 0.25, 
-                              w2 = 0.25, 
-                              w3 = 0.25, 
-                              w4 = 0.25,
+                         list(alpha = c(10, 10, 10, 10),
+                              w = c(0.25, 0.25, 0.25, 0.25),
                               sigma.beta1 = 0.1,
                               beta.mit = c(0,0)
                               )
@@ -206,11 +204,11 @@ code <- nimbleCode({
   # mean.p.fidelity[2] ~ dbeta(60,4) # adult fidelity
   mean.p.fidelity ~ dbeta(60,4) # adult fidelity
   
-  mean.p.propensity ~ dbeta(15,2) # adult breeding prob, if on land
+  mean.p.propensity ~ dbeta(10,3) # adult breeding prob, if on land
   
   mean.p.atsea ~ dbeta(4,10) # prob of remaining at sea, breeders
   
-  mean.p.det ~ dnorm(2.5,sd = 0.75) # probability of detecting an adult, given they are there
+  mean.p.det ~ dnorm(3,sd = 0.5) # probability of detecting an adult, given they are there
   
   #sigma.p.det ~ dexp(10)
   
@@ -251,7 +249,7 @@ code <- nimbleCode({
   }
   
   ### SURVIVAL PROBABILITY
-  mean.phi.juv ~ dbeta(6, 4) 
+  mean.phi.juv ~ dbeta(30,40) 
   #mean.phi.juv ~ dbeta(1, 1)            
   mean.phi.ad ~ dbeta(50,4)  
   #mean.phi.ad ~ dbeta(1,1)              
@@ -263,11 +261,16 @@ code <- nimbleCode({
   
   ## RANDOM TIME EFFECT ON SURVIVAL
   
-  w1 ~ dbeta(1,1)
-  w2 ~ dbeta(1,1)
-  w3 ~ dbeta(1,1)
-  w4 ~ dbeta(1,1)
-  ones ~ dconstraint(w1 + w2 + w3 + w4 == 1)
+  # w1 ~ dbeta(1,1)
+  # w2 ~ dbeta(1,1)
+  # w3 ~ dbeta(1,1)
+  # w4 ~ dbeta(1,1)
+  # ones ~ dconstraint(w1 + w2 + w3 + w4 == 1)
+  
+  for (i in 1:4) {
+    alpha[i] ~ dpois(10)
+  }
+  w[1:4] ~ ddirch(alpha[1:4])
   
   sigma.beta1 ~ dexp(10)
   # sigma.beta2 ~ dexp(1)
@@ -292,10 +295,10 @@ code <- nimbleCode({
     # logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e[1]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[1]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[1]*Nam.ll.mit[j] + beta.SA.ll.mit[1]*SA.ll.mit[j] + beta.Uru.ll.mit[1]*Uru.ll.mit[j]
     # logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e[2]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[2]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[2]*Nam.ll.mit[j] + beta.SA.ll.mit[2]*SA.ll.mit[j] + beta.Uru.ll.mit[2]*Uru.ll.mit[j]
     
-    mit.index[j] <- w1*ICCAT.ll.mit[j] + w2*Nam.ll.mit[j] + w3*SA.ll.mit[j] + w4*Uru.ll.mit[j]
+    mit.index[j] <- w[1]*ICCAT.ll.mit[j] + w[2]*Nam.ll.mit[j] + w[3]*SA.ll.mit[j] + w[4]*Uru.ll.mit[j]
     
-    logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.mit[1]*mit.index[j]
-    logit(phi.ad[j])  <- mu.ad  + eps.phi[j]             + beta.mit[2]*mit.index[j]
+    logit(phi.juv[j]) <- mu.juv + eps.phi[j] + beta.mit[1]*mit.index[j]
+    logit(phi.ad[j])  <- mu.ad  + eps.phi[j] + beta.mit[2]*mit.index[j]
     
     eps.phi[j] ~ dnorm(0, sd = sigma.phi) 
     
@@ -678,7 +681,7 @@ params <- c(
   #"sigma.beta4",
   #"sigma.beta5",
   
-  "w1", "w2", "w3", "w4",
+  "alpha", "w",
   "beta.mit"
   # "beta.ICCAT.ll.e",
   # "beta.ICCAT.ll.mit",

@@ -156,6 +156,13 @@ load("IPM_AEB_dat_stateSpace_marginal_loaf_reduced_incolony_COVARIATES.RData")
 
 #### LOAD INITS #####
 load("IPM_AEB_inits_stateSpace_marginal_loaf_reduced_incolony_COVARIATES.Rdata") 
+inits_marginal <- inits_marginal[-c(21:24)]
+inits_marginal <- append(inits_marginal, 
+                         list(
+                           alpha = c(10, 10, 10, 10),
+                           w = c(0.25, 0.25, 0.25, 0.25)
+                         )
+)
 
 #### MODEL CODE ####
 code <- nimbleCode({
@@ -239,7 +246,7 @@ code <- nimbleCode({
   
   ### SURVIVAL PROBABILITY
   mean.phi.juv ~ dbeta(30,40) 
-  mean.phi.imm ~ dbeta(40,10)
+  mean.phi.im ~ dbeta(40,10)
   #mean.phi.juv ~ dbeta(1, 1)            
   mean.phi.ad ~ dbeta(50,4)  
   #mean.phi.ad ~ dbeta(1,1)
@@ -247,18 +254,23 @@ code <- nimbleCode({
   inflation.factor ~ dbeta(3, 50)
   
   mu.juv <- log(mean.phi.juv / (1-mean.phi.juv)) # Logit transformation
-  mu.imm <- log(mean.phi.im) / (1-mean.phi.im))
+  mu.im <- log(mean.phi.im / (1-mean.phi.im))
   mu.ad <- log(mean.phi.ad / (1-mean.phi.ad)) # Logit transformation
   
   sigma.phi ~ dexp(10) # AEB changed, don't want this huge
   
   ## RANDOM TIME EFFECT ON SURVIVAL
   
-  w1 ~ dbeta(1,1)
-  w2 ~ dbeta(1,1)
-  w3 ~ dbeta(1,1)
-  w4 ~ dbeta(1,1)
-  ones ~ dconstraint(w1 + w2 + w3 + w4 == 1)
+  # w1 ~ dbeta(1,1)
+  # w2 ~ dbeta(1,1)
+  # w3 ~ dbeta(1,1)
+  # w4 ~ dbeta(1,1)
+  # ones ~ dconstraint(w1 + w2 + w3 + w4 == 1)
+  
+  for (i in 1:4) {
+    alpha[i] ~ dpois(10)
+  }
+  w[1:4] ~ ddirch(alpha[1:4])
   
   sigma.beta1 ~ dexp(10)
   # sigma.beta2 ~ dexp(1)
@@ -283,7 +295,7 @@ code <- nimbleCode({
     # logit(phi.juv[j]) <- mu.juv + eps.phi[j]*juv.poss[j] + beta.ICCAT.ll.e[1]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[1]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[1]*Nam.ll.mit[j] + beta.SA.ll.mit[1]*SA.ll.mit[j] + beta.Uru.ll.mit[1]*Uru.ll.mit[j]
     # logit(phi.ad[j]) <- mu.ad + eps.phi[j] + beta.ICCAT.ll.e[2]*ICCAT.ll.e[j] + beta.ICCAT.ll.mit[2]*ICCAT.ll.mit[j] + beta.Nam.ll.mit[2]*Nam.ll.mit[j] + beta.SA.ll.mit[2]*SA.ll.mit[j] + beta.Uru.ll.mit[2]*Uru.ll.mit[j]
     
-    mit.index[j] <- w1*ICCAT.ll.mit[j] + w2*Nam.ll.mit[j] + w3*SA.ll.mit[j] + w4*Uru.ll.mit[j]
+    mit.index[j] <- w[1]*ICCAT.ll.mit[j] + w[2]*Nam.ll.mit[j] + w[3]*SA.ll.mit[j] + w[4]*Uru.ll.mit[j]
     
     logit(phi.juv[j]) <- mu.juv + eps.phi[j] + beta.mit[1]*mit.index[j]
     logit(phi.im[j]) <-  mu.im  + eps.phi[j] + beta.mit[1]*mit.index[j]
@@ -584,7 +596,7 @@ params <- c(
   #"sigma.beta4",
   #"sigma.beta5",
   
-  "w1", "w2", "w3", "w4",
+  "alpha", "w",
   "beta.mit"
   # "beta.ICCAT.ll.e",
   # "beta.ICCAT.ll.mit",
