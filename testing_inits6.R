@@ -9,7 +9,7 @@ iann.fec <- rep(0.5, n.years.fec)
 imean.p.propensity <- 0.8
 imean.p.atsea <- 0.35
 imean.p.det <- 3
-imu.p.juv <- -3
+imu.p.juv <- -6
 iagebeta <- 0.75
 isigma.p <- 0.1
 
@@ -208,7 +208,7 @@ CH_all_reduced[CH_all_reduced == 3] <- 3 #3 unknown status -> 3
 CH_all_reduced[CH_all_reduced == 5] <- 2 #5 known loafer -> 2
 CH_all_reduced[CH_all_reduced == 6] <- 1 #6 known breeder -> 1
 CH_all_reduced[CH_all_reduced == 7] <- 4 #7 undetected -> 4
-first <- apply(CH_all_reduced, 1, function(x){min(which(x != 7))})
+first <- apply(CH_all_reduced, 1, function(x){min(which(x != 4))})
 
 age <- matrix(2, nrow = dim(CH_all_reduced)[1], ncol = dim(CH_all_reduced)[2])
 for (i in (dim(AYNA_AD_reduced)[1] + 1):(dim(CH_all_reduced)[1])) {
