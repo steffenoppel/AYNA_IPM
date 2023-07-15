@@ -451,7 +451,7 @@ code <- nimbleCode({
                                             len = n.occasions - first[i] + 1, # length of observations
                                             checkRowSums = 0) 
     
-    obs.mat[i,1:6, 1:2, first[i]] <- obs.mat.init[i, 1:6, 1:4]
+    obs.mat[i,1:6, 1:4, first[i]] <- obs.mat.init[i, 1:6, 1:4]
     
     for (t in (first[i]+1):n.occasions) {
       # phi[i,t] related to individual age and year per previous model
