@@ -210,7 +210,7 @@ code <- nimbleCode({
   #mean.p.ad[1] ~ dbeta(8.3, 25)	# low detection
   #mean.p.ad ~ dbeta(1, 1)	# low detection, # no longer really relevant, because we have propensity now
   
-  mu.p.juv ~ dnorm(-3, sd = 0.25) 
+  mu.p.juv ~ dnorm(-6, sd = 0.25) 
   #mu.p.ad <- log(mean.p.ad / (1-mean.p.ad)) 
   
   # Prior for shape of increase in juvenile recapture probability with age

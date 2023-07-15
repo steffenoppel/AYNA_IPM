@@ -308,8 +308,7 @@ dat_marginal <- list(
   ICCAT.ll.mit = longline$mit.ICCAT,
   Nam.ll.mit = longline$mit.NAM,
   SA.ll.mit = longline$mit.RSA,
-  Uru.ll.mit = longline$mit.URU,
-  ones = 1
+  Uru.ll.mit = longline$mit.URU
 ) 
 
 # const ####
