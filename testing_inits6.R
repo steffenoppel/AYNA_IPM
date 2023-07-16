@@ -249,7 +249,11 @@ for (i in 1:nrow(init)) {
           CH_all_reduced[i, to_fix] <- 3 
         }
       }
-      
+      only_observed_loafing <- all((CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])])[CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])] != 4] == 2)
+      if (only_observed_loafing) {
+        to_fix <- (CH_all_reduced[i, ] == 2) %>% as.logical()
+        CH_all_reduced[i, to_fix] <- 3 
+      }
     }
   } else { # if age is 2 - breeding in colony
     #Zdat[i, first[i]] <- 8 
