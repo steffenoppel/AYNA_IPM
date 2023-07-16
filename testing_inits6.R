@@ -322,7 +322,7 @@ const_marginal <- list(
   first = first,
   maxAge = const$n.occasions,
   mult = mult,
-  gamma = c(rep(0, times = (length(all.seasons)-3)), rep(0, times = 3))
+  gamma = c(rep(0, times = (length(all.seasons)-3)), rep(1, times = 3))
 ) 
 
 save(dat_marginal, const_marginal, file = "IPM_AEB_dat_stateSpace_marginal_loaf_reduced_incolony_informed_COVARIATES.RData")
