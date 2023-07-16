@@ -225,19 +225,6 @@ obs.mat.init.JUV <- matrix(
     0,0,1,0
   ), nrow = 6, ncol = 4, byrow = T
 )
-obs.mat.init.AD <- matrix(
-  c(
-    0,0,1,0,
-    0,0,1,0,
-    0,0,1,0,
-    0,0,1,0,
-    0,0,1,0, # when banded as an adult, assume state = prebreeder, observed = state unknown
-    0,0,1,0
-  ), nrow = 6, ncol = 4, byrow = T
-)
-
-# TODO 
-# recode y
 
 #Zdat <- matrix(NA, nrow = dim(CH_all_reduced)[1], ncol = dim(CH_all_reduced)[2])
 init <- matrix(NA, nrow = dim(CH_all_reduced)[1], ncol = 6)
@@ -249,7 +236,43 @@ for (i in 1:nrow(init)) {
     obs.mat.init[i, , ] <- obs.mat.init.JUV
   } else { # if age is 2 - breeding in colony
     #Zdat[i, first[i]] <- 8 
-    init[i, 1:6] <- c(0,0,0,0,1,0)
+    if (CH_all_reduced[i, first[i]] == 1) { # seen breeding
+      init[i, 1:6] <- c(0,0,0,0,1,0) 
+      obs.mat.init.AD <- matrix(
+        c(
+          0,0,1,0,
+          0,0,1,0,
+          0,0,1,0,
+          0,0,1,0,
+          1,0,0,0, # when banded as an adult, assume state = prebreeder, observed = state unknown
+          0,0,1,0
+        ), nrow = 6, ncol = 4, byrow = T
+      )
+    } else if (CH_all_reduced[i, first[i]] == 2) { # seen loafing
+      init[i, 1:6] <- c(0,0,1,0,0,0) 
+      obs.mat.init.AD <- matrix(
+        c(
+          0,0,1,0,
+          0,0,1,0,
+          0,1,0,0,
+          0,0,1,0,
+          0,0,1,0, # when banded as an adult, assume state = prebreeder, observed = state unknown
+          0,0,1,0
+        ), nrow = 6, ncol = 4, byrow = T
+      )
+    } else if (CH_all_reduced[i, first[i]] == 3) { # seen unknown
+      init[i, 1:6] <- c(0,0,0,0,1,0) 
+      obs.mat.init.AD <- matrix(
+        c(
+          0,0,1,0,
+          0,0,1,0,
+          0,0,1,0,
+          0,0,1,0,
+          0,0,1,0, # when banded as an adult, assume state = prebreeder, observed = state unknown
+          0,0,1,0
+        ), nrow = 6, ncol = 4, byrow = T
+      )
+    } 
     obs.mat.init[i, , ] <- obs.mat.init.AD
   }
 }
