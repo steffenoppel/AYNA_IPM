@@ -234,6 +234,23 @@ for (i in 1:nrow(init)) {
     #Zdat[i, first[i]] <- 1 # TODO
     init[i, 1:6] <- c(1,0,0,0,0,0) 
     obs.mat.init[i, , ] <- obs.mat.init.JUV
+    CH_curr <- CH_all_reduced[i,] %>% as.numeric() 
+    ever_observed <- any(CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])] != 4)
+    if (ever_observed) {
+      ever_observed_loafing <- any(CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])] == 2)
+      ever_observed_breeding<- any(CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])] == 1)
+      if (ever_observed_loafing & ever_observed_breeding) {
+    
+        when_observed_loafing <- (which(CH_curr[(1):(dim(CH_all_reduced)[2])] == 2))
+        when_observed_breeding <- (which(CH_curr[(1):(dim(CH_all_reduced)[2])] == 1))
+        first_observed_breeding <- min(when_observed_breeding)
+        if (min(when_observed_loafing) < first_observed_breeding) {
+          to_fix <- when_observed_loafing[which(when_observed_loafing < first_observed_breeding)]
+          CH_all_reduced[i, to_fix] <- 3 
+        }
+      }
+      
+    }
   } else { # if age is 2 - breeding in colony
     #Zdat[i, first[i]] <- 8 
     if (CH_all_reduced[i, first[i]] == 1) { # seen breeding
