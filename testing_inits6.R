@@ -71,7 +71,7 @@ IMinits[,, 1]
 
 iN.recruits[1] <- sum(IMinits[1,1:maxage,2]) 
 iNtot.breed[1] <- max(rnorm(1, 640*0.5,sd = 20), 1) %>% round()#change here
-iN.atsea[1] <- max(rnorm(1, 192*0.5,sd = 20), 1) %>% round() #change here
+iN.atsea[1] <- max(rnorm(1, 20*0.5,sd = 20), 1) %>% round() #change here
 iN.loaf[1] <- max(rnorm(1, 120*0.5,sd = 20), 1) %>% round() #change here
 iJUV[1] <- max(rnorm(1, 232*0.5, sd = 20), 1) %>% round()
 
@@ -352,7 +352,8 @@ dat_marginal <- list(
   ICCAT.ll.mit = longline$mit.ICCAT,
   Nam.ll.mit = longline$mit.NAM,
   SA.ll.mit = longline$mit.RSA,
-  Uru.ll.mit = longline$mit.URU
+  Uru.ll.mit = longline$mit.URU,
+  phi_constraint_data = 1
 ) 
 
 # const ####

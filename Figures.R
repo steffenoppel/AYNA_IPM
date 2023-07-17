@@ -69,11 +69,11 @@ theme_murres <- function(){
 }
 
 # LOAD SAMPLES #####
-load("~/Documents/AYNA_IPM/samples_statespace_marginal_loaf_reduced_incolony_new_COVARIATES_chain1.Rdata")
+load("~/Documents/AYNA_IPM/samples_statespace_marginal_loaf_reduced_incolony_informed_COVARIATES_chain1.Rdata")
 chain1 <- out1
-load("~/Documents/AYNA_IPM/samples_statespace_marginal_loaf_reduced_incolony_new_COVARIATES_chain2.Rdata")
+load("~/Documents/AYNA_IPM/samples_statespace_marginal_loaf_reduced_incolony_informed_COVARIATES_chain2.Rdata")
 chain2 <- out1
-load("~/Documents/AYNA_IPM/samples_statespace_marginal_loaf_reduced_incolony_new_COVARIATES_chain3.Rdata")
+load("~/Documents/AYNA_IPM/samples_statespace_marginal_loaf_reduced_incolony_informed_COVARIATES_chain3.Rdata")
 chain3 <- out1
 
 out1 <- list(chain1 = chain1, chain2 = chain2, chain3 = chain3) %>% 
@@ -82,9 +82,17 @@ nb <- dim(chain1)[1]/2
 out1_wburnin <- lapply(out1, function(x) x[(nrow(x)-nb+1):nrow(x), ] %>% as.mcmc()) %>% 
   as.mcmc.list()
 out1_wburnin_thinned <- post_thin(out1_wburnin, keep_iters = nb/10)
+out1_wburnin_thinned <- post_subset(out1_wburnin_thinned, get_params(out1_wburnin_thinned, type = "base_index"),
+                                    matrix = T) %>% 
+  as.data.frame() %>% 
+  filter(!is.nan(`IM[13, 1, 1]`) & !is.nan(`IM[13, 1, 3]`) & !is.nan(`Ntot[13]`)) %>% 
+  slice(1:12000) %>% 
+  bind_cols(ITER = rep(1:4000, times = 3), CHAIN = rep(1:3, each = 4000))
+out1_wburnin_thinned <- post_convert(out1_wburnin_thinned %>% as.matrix())
 
 summ <- t(post_summ(out1_wburnin_thinned, get_params(out1_wburnin_thinned, type = "base_index"), 
-                    neff = TRUE, Rhat = TRUE, probs = c(0.025, 0.5, 0.975))) %>% 
+                    neff = TRUE, Rhat = TRUE , probs = c(0.025, 0.5, 0.975)
+                    )) %>% 
   as.data.frame() %>% 
   rownames_to_column(var = "name")
 

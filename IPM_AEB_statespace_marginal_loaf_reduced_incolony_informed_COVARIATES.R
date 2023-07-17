@@ -197,7 +197,7 @@ code <- nimbleCode({
   
   mean.p.atsea ~ dbeta(4,10) # prob of remaining at sea, breeders
   
-  mean.p.det ~ dnorm(3,sd = 0.5) # probability of detecting an adult, given they are there
+  mean.p.det ~ dnorm(0, sd = 2) # probability of detecting an adult, given they are there
   
   #sigma.p.det ~ dexp(10)
   
@@ -215,7 +215,7 @@ code <- nimbleCode({
   
   # Prior for shape of increase in juvenile recapture probability with age
   #agebeta ~ dnorm(2, sd = 0.25) # AEB change
-  agebeta ~ dnorm(0.75, sd = 0.1) # AEB change
+  agebeta ~ dnorm(0.75, sd = 0.25) # AEB change
   
   sigma.p ~ dexp(10) # AEB change, reduce variability 
   
@@ -243,6 +243,7 @@ code <- nimbleCode({
   #mean.phi.juv ~ dbeta(1, 1)            
   mean.phi.ad ~ dbeta(50,4)  
   #mean.phi.ad ~ dbeta(1,1)
+  phi_constraint_data ~ dconstraint(mean.phi.juv < mean.phi.ad)
   
   inflation.factor ~ dbeta(3, 50)
   
@@ -365,7 +366,7 @@ code <- nimbleCode({
   #Ntot.breed[1] ~ T(dnorm(640/2,sd = 20), 0, Inf)  
   Ntot.breed[1] ~ dpois(640/2*0.9)  
   #N.atsea[1] ~ T(dnorm(224/2,sd = 20), 0, Inf)    
-  N.atsea[1] ~ dpois(192/2*0.9) # 640*0.05/2, with a little wiggle
+  N.atsea[1] ~ dpois(20/2*0.9) # 640*0.05/2, with a little wiggle
   N.loaf[1] ~ dpois(120/2*0.9) # taken from count of loafers in 2010
   nestlings[1] <- 0
   #JUV[1] ~ T(dnorm(232/2, sd = 20), 0, Inf)         
@@ -537,9 +538,9 @@ code <- nimbleCode({
 
       # loaf in - has bred
       obs.mat[i,3, 1,t] <- 0
-      obs.mat[i,3, 2,t] <- p.det[t-1]*gamma[t]
-      obs.mat[i,3, 3,t] <- p.det[t-1]*(1-gamma[t])
-      obs.mat[i,3, 4,t] <- 1-p.det[t-1]
+      obs.mat[i,3, 2,t] <- gamma[t] #p.det[t-1]*gamma[t]
+      obs.mat[i,3, 3,t] <- (1-gamma[t]) #p.det[t-1]*(1-gamma[t])
+      obs.mat[i,3, 4,t] <- 0 #1-p.det[t-1]
 
       # recruit in colony
       obs.mat[i,4, 1,t] <- gamma[t] #p.det[t-1]*gamma[t]
