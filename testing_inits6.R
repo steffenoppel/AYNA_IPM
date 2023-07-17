@@ -246,13 +246,13 @@ for (i in 1:nrow(init)) {
         first_observed_breeding <- min(when_observed_breeding)
         if (min(when_observed_loafing) < first_observed_breeding) {
           to_fix <- when_observed_loafing[which(when_observed_loafing < first_observed_breeding)]
-          CH_all_reduced[i, to_fix] <- 3 
+          CH_all_reduced[i, to_fix] <- 1 # 3 TODO fix here
         }
       }
       only_observed_loafing <- all((CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])])[CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])] != 4] == 2)
       if (only_observed_loafing) {
         to_fix <- (CH_all_reduced[i, ] == 2) %>% as.logical()
-        CH_all_reduced[i, to_fix] <- 3 
+        CH_all_reduced[i, to_fix] <- 1 # 3 TODO fix here
       }
     }
   } else { # if age is 2 - breeding in colony
