@@ -255,8 +255,9 @@ for (i in 1:nrow(init)) {
         CH_all_reduced[i, to_fix] <- 1 # 3 TODO fix here
       }
       only_observed_unk_after2019 <- all((CH_curr[(dim(CH_all_reduced)[2]-2):(dim(CH_all_reduced)[2])])[CH_curr[(dim(CH_all_reduced)[2]-2):(dim(CH_all_reduced)[2])] != 4] == 3)
-      if (only_observed_unk) {
-        to_fix <- (CH_all_reduced[i, ] == 3) %>% as.logical()
+      if (only_observed_unk_after2019) {
+        to_fix <- which((CH_all_reduced[i, ] == 3) %>% as.logical())
+        to_fix <- to_fix[to_fix < (dim(CH_all_reduced)[2]-2)]
         CH_all_reduced[i, to_fix] <- 1 # 3 TODO fix here
       }
     }
