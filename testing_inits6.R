@@ -254,6 +254,11 @@ for (i in 1:nrow(init)) {
         to_fix <- (CH_all_reduced[i, ] == 2) %>% as.logical()
         CH_all_reduced[i, to_fix] <- 1 # 3 TODO fix here
       }
+      only_observed_unk <- all((CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])])[CH_curr[(first[i]+1):(dim(CH_all_reduced)[2])] != 4] == 3)
+      if (only_observed_unk) {
+        to_fix <- (CH_all_reduced[i, ] == 3) %>% as.logical()
+        CH_all_reduced[i, to_fix] <- 1 # 3 TODO fix here
+      }
     }
   } else { # if age is 2 - breeding in colony
     #Zdat[i, first[i]] <- 8 
