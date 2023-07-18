@@ -193,11 +193,11 @@ code <- nimbleCode({
   # mean.p.fidelity[2] ~ dbeta(60,4) # adult fidelity
   # mean.p.fidelity ~ dbeta(60,4) # adult fidelity
   
-  mean.p.propensity ~ dbeta(30,5) # adult breeding prob, if on land
+  mean.p.propensity ~ dbeta(60,10) # adult breeding prob, if on land
   
-  mean.p.atsea ~ dbeta(4,10) # prob of remaining at sea, breeders
+  mean.p.atsea ~ dbeta(10,50) # prob of remaining at sea, breeders
   
-  mean.p.det ~ dnorm(0, sd = 2) # probability of detecting an adult, given they are there
+  #mean.p.det ~ dnorm(0, sd = 2) # probability of detecting an adult, given they are there
   
   #sigma.p.det ~ dexp(10)
   
@@ -210,14 +210,14 @@ code <- nimbleCode({
   #mean.p.ad[1] ~ dbeta(8.3, 25)	# low detection
   #mean.p.ad ~ dbeta(1, 1)	# low detection, # no longer really relevant, because we have propensity now
   
-  mu.p.juv ~ dnorm(-6, sd = 0.25) 
+  mu.p.juv ~ dnorm(-6, sd = 0.1) 
   #mu.p.ad <- log(mean.p.ad / (1-mean.p.ad)) 
   
   # Prior for shape of increase in juvenile recapture probability with age
   #agebeta ~ dnorm(2, sd = 0.25) # AEB change
-  agebeta ~ dnorm(0.75, sd = 0.1) # AEB change
+  agebeta ~ dnorm(0.75, sd = 0.05) # AEB change
   
-  sigma.p ~ dexp(10) # AEB change, reduce variability 
+  #sigma.p ~ dexp(10) # AEB change, reduce variability 
   
   ## RANDOM TIME EFFECT ON RECRUITMENT PROBABILITY...
   for (t in 1:(n.occasions-1)){
@@ -233,15 +233,15 @@ code <- nimbleCode({
     }
     # ...FOR ADULTS
     #logit(p.ad[t])  <- mu.p.ad + eps.p[t]  
-    eps.p[t] ~ dnorm(0, sd = sigma.p)
-    logit(p.det[t]) <- mean.p.det + eps.p[t]
+    #eps.p[t] ~ dnorm(0, sd = sigma.p)
+    #logit(p.det[t]) <- mean.p.det + eps.p[t]
   }
   
   ### SURVIVAL PROBABILITY
   #mean.phi.juv ~ dbeta(30,40) 
-  mean.phi.juv ~ dbeta(40,10)
+  mean.phi.juv ~ dbeta(200,50)
   #mean.phi.juv ~ dbeta(1, 1)            
-  mean.phi.ad ~ dbeta(50,4)  
+  mean.phi.ad ~ dbeta(600,50)  
   #mean.phi.ad ~ dbeta(1,1)
   phi_constraint_data ~ dconstraint(mean.phi.juv < mean.phi.ad)
   
@@ -366,7 +366,7 @@ code <- nimbleCode({
   #Ntot.breed[1] ~ T(dnorm(640/2,sd = 20), 0, Inf)  
   Ntot.breed[1] ~ dpois(640/2*0.9)  
   #N.atsea[1] ~ T(dnorm(224/2,sd = 20), 0, Inf)    
-  N.atsea[1] ~ dpois(20/2*0.9) # 640*0.05/2, with a little wiggle
+  N.atsea[1] ~ dpois(64/2*0.9) # 640*0.05/2, with a little wiggle
   N.loaf[1] ~ dpois(120/2*0.9) # taken from count of loafers in 2010
   nestlings[1] <- 0
   #JUV[1] ~ T(dnorm(232/2, sd = 20), 0, Inf)         
@@ -575,11 +575,11 @@ params <- c(
   # SURVIVAL
   "mean.p.propensity", 
   "mean.p.atsea",
-  "mean.p.det",
+  #"mean.p.det",
   "mu.p.juv", 
   "agebeta", 
-  "sigma.p", 
-  "eps.p",
+  #"sigma.p", 
+  #"eps.p",
   "mean.phi.juv", 
   "mean.phi.ad", 
   "inflation.factor",
@@ -658,5 +658,5 @@ out1 <- runMCMC(Cmcmc, niter = ni , nburnin = nb , nchains = nc, inits = inits_m
 t.end <- Sys.time()
 (runTime <- t.end - t.start)
 
-save(out1, file = "samples_statespace_marginal_loaf_reduced_incolony_informed_COVARIATES_chain1.Rdata")
+save(out1, file = "samples_statespace_marginal_loaf_reduced_incolony_informed_COVARIATES_chain1_lastNEW.Rdata")
 

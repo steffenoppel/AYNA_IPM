@@ -4,17 +4,17 @@ maxage <- const$maxAge
 n.years.fec <- const$n.years.fec
 
 #### INITIAL VALUES ####
-iann.fec <- rep(0.5, n.years.fec)
+iann.fec <- rep(0.45, n.years.fec)
 #imean.p.fidelity <- c(0.9, 0.9)
 imean.p.propensity <- 0.8
-imean.p.atsea <- 0.35
+imean.p.atsea <- 0.2
 imean.p.det <- 3
 imu.p.juv <- -6
 iagebeta <- 0.75
 isigma.p <- 0.1
 
-imean.phi.juv <- 0.8
-iinflation.factor <- 0.01
+imean.phi.juv <- 0.75
+iinflation.factor <- 0.001
 imean.phi.ad <- 0.9
 isigma.phi <- 0.1
 
@@ -71,7 +71,7 @@ IMinits[,, 1]
 
 iN.recruits[1] <- sum(IMinits[1,1:maxage,2]) 
 iNtot.breed[1] <- max(rnorm(1, 640*0.5,sd = 20), 1) %>% round()#change here
-iN.atsea[1] <- max(rnorm(1, 20*0.5,sd = 20), 1) %>% round() #change here
+iN.atsea[1] <- max(rnorm(1, 64*0.5,sd = 20), 1) %>% round() #change here
 iN.loaf[1] <- max(rnorm(1, 120*0.5,sd = 20), 1) %>% round() #change here
 iJUV[1] <- max(rnorm(1, 232*0.5, sd = 20), 1) %>% round()
 
@@ -257,7 +257,7 @@ for (i in 1:nrow(init)) {
       only_observed_unk_after2019 <- all((CH_curr[(dim(CH_all_reduced)[2]-2):(dim(CH_all_reduced)[2])])[CH_curr[(dim(CH_all_reduced)[2]-2):(dim(CH_all_reduced)[2])] != 4] == 3)
       if (only_observed_unk_after2019) {
         to_fix <- which((CH_all_reduced[i, ] == 3) %>% as.logical())
-        to_fix <- to_fix[to_fix < (dim(CH_all_reduced)[2]-2)]
+        to_fix <- to_fix[to_fix >=(dim(CH_all_reduced)[2]-2)]
         CH_all_reduced[i, to_fix] <- 1 # 3 TODO fix here
       }
     }
@@ -385,10 +385,10 @@ inits_marginal <- list(
   sigma.fec = 0.1,
   mean.p.propensity = imean.p.propensity, 
   mean.p.atsea = imean.p.atsea,
-  mean.p.det = imean.p.det, 
+  #mean.p.det = imean.p.det, 
   mu.p.juv = imu.p.juv, 
   agebeta = iagebeta,
-  sigma.p = isigma.p, 
+  #sigma.p = isigma.p, 
   mean.phi.juv = imean.phi.juv,
   mean.phi.ad = imean.phi.ad,
   inflation.factor = iinflation.factor,
